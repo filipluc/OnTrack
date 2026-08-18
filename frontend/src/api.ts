@@ -76,6 +76,12 @@ export interface Occurrence {
   endTime: string | null;
   date: string;
   status: "done" | "not_done";
+  /** True if this class session itself gave homework (due at the next occurrence of the same task). */
+  homeworkAssigned: boolean;
+  /** True if a previous occurrence of this task assigned homework due on this date. */
+  homeworkDue: boolean;
+  /** Only meaningful when homeworkDue is true. */
+  homeworkDone: boolean;
 }
 
 export function getTasks(userId: number, from: string, to: string) {
@@ -110,5 +116,21 @@ export function setTaskStatus(id: number, date: string, status: "done" | "not_do
   return request<{ ok: true }>(`/tasks/${id}/complete`, {
     method: "POST",
     body: JSON.stringify({ date, status }),
+  });
+}
+
+/** Mark (or unmark) that this occurrence's class gave homework, due at the next occurrence of the same task. */
+export function setHomeworkAssigned(id: number, date: string, assigned: boolean) {
+  return request<{ ok: true }>(`/tasks/${id}/homework-assigned`, {
+    method: "POST",
+    body: JSON.stringify({ date, assigned }),
+  });
+}
+
+/** Mark whether the homework due on this occurrence has been done. */
+export function setHomeworkDone(id: number, date: string, done: boolean) {
+  return request<{ ok: true }>(`/tasks/${id}/homework-done`, {
+    method: "POST",
+    body: JSON.stringify({ date, done }),
   });
 }

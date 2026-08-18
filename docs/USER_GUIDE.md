@@ -40,6 +40,11 @@ to go through, and no invite code to share.
   delete **only this day** (skips just that one occurrence, the rest of the schedule stays)
   or **all occurrences** (removes the whole repeating task). A one-off task just asks you
   to confirm, since there's only one occurrence to remove either way.
+- **Track homework:** on any **School** task, tap **"+ Homework given?"** if that class
+  assigned homework — it turns into **"✓ Homework given"**; tap again to undo. The task's
+  *next* occurrence (same subject, next time it's on the schedule) automatically shows a
+  **"Homework for today"** checkbox — red while it's still outstanding, green once ticked.
+  That checkbox only appears on the day the homework is actually due.
 
 ## Who can see and do what
 

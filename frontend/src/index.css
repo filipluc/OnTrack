@@ -309,12 +309,18 @@ button:disabled {
 
 .task-item {
   display: flex;
-  align-items: center;
-  gap: 0.8rem;
+  flex-direction: column;
+  gap: 0.5rem;
   background: var(--card);
   border-radius: var(--radius);
   padding: 0.8rem 1rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.task-main {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
 }
 
 .task-item.done {
@@ -392,6 +398,61 @@ button:disabled {
 
 .delete-btn:hover {
   color: var(--danger);
+}
+
+.homework-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  padding-left: 2.4rem;
+}
+
+.homework-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.homework-toggle input {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.homework-toggle.homework-due {
+  font-weight: 700;
+}
+
+.homework-toggle.homework-due.not-done {
+  color: var(--danger);
+}
+
+.homework-toggle.homework-due.done {
+  color: #15803d;
+  text-decoration: line-through;
+}
+
+.homework-toggle-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.homework-toggle-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.homework-toggle-btn.active {
+  background: #eef2ff;
+  border-color: var(--primary);
+  color: var(--primary-dark);
 }
 
 .fab {

@@ -1,6 +1,15 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../auth";
-import { getChildren, getTasks, setTaskStatus, deleteTask, type Child, type Occurrence } from "../api";
+import {
+  getChildren,
+  getTasks,
+  setTaskStatus,
+  deleteTask,
+  setHomeworkAssigned,
+  setHomeworkDone,
+  type Child,
+  type Occurrence,
+} from "../api";
 import { addDays, formatDisplay, getWeekDates, toISODate } from "../date";
 import DayView from "../components/DayView";
 import WeekStrip from "../components/WeekStrip";
@@ -72,6 +81,26 @@ export default function Dashboard() {
     );
     try {
       await setTaskStatus(occ.id, occ.date, nextStatus);
+    } catch {
+      loadTasks();
+    }
+  }
+
+  async function handleSetHomeworkAssigned(occ: Occurrence, assigned: boolean) {
+    try {
+      await setHomeworkAssigned(occ.id, occ.date, assigned);
+      loadTasks();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update homework");
+    }
+  }
+
+  async function handleSetHomeworkDone(occ: Occurrence, done: boolean) {
+    setWeekOccurrences((prev) =>
+      prev.map((o) => (o.id === occ.id && o.date === occ.date ? { ...o, homeworkDone: done } : o))
+    );
+    try {
+      await setHomeworkDone(occ.id, occ.date, done);
     } catch {
       loadTasks();
     }
@@ -154,7 +183,13 @@ export default function Dashboard() {
       {loading ? (
         <p className="empty-state">Loading…</p>
       ) : (
-        <DayView occurrences={dayOccurrences} onToggle={handleToggle} onDelete={handleDelete} />
+        <DayView
+          occurrences={dayOccurrences}
+          onToggle={handleToggle}
+          onDelete={handleDelete}
+          onSetHomeworkAssigned={handleSetHomeworkAssigned}
+          onSetHomeworkDone={handleSetHomeworkDone}
+        />
       )}
 
       <button className="fab" onClick={() => setShowAddTask(true)}>

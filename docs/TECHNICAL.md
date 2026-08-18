@@ -61,6 +61,7 @@ render.yaml              Render Blueprint for the backend service
 | date | text, nullable | `YYYY-MM-DD`; only used when `recurrence='none'` |
 | start_time / end_time | text, nullable | `HH:MM`, optional either way |
 | created_by | int | FK → users.id — who added it (parent or the child themself) |
+| starts_on / ends_on | text, nullable | `YYYY-MM-DD`; only set when `recurrence != 'none'` — bounds which dates a recurring task expands into (see below). `null` for one-off tasks, which don't need a window. |
 
 **task_completions**
 | column | type | notes |
@@ -70,16 +71,49 @@ render.yaml              Render Blueprint for the backend service
 | date | text | `YYYY-MM-DD` — which occurrence this completion is for |
 | status | text | `'done'` \| `'not_done'` \| `'skipped'` |
 | completed_at | text, nullable | ISO timestamp, set when marked done |
+| homework_assigned | boolean | true if *this* occurrence's class gave homework (due at the task's next occurrence) |
+| homework_due | boolean | true if a previous occurrence of this task assigned homework due *on this date* |
+| homework_done | boolean | only meaningful when `homework_due` is true |
 
 Unique constraint on `(task_id, date)` — one completion row per task per day. Recurring
 tasks are stored once and **expanded on read**: for a given date range, the backend
-walks each date, checks which tasks occur on it (daily = always, weekly = day-of-week
-in `days_of_week`, none = exact date match), and joins in that date's completion row if
-one exists (defaulting to `not_done`). This is why a daily task's checkbox resets each
-day — the completion is per-date, not on the task itself. `'skipped'` reuses this same
-per-date row to delete a single occurrence of a recurring task without touching the
-task itself or its other dates — the occurrence is filtered out during expansion, same
-as `'done'`/`'not_done'` otherwise flow through.
+walks each date, checks which tasks occur on it (daily = always **and within its
+`starts_on`/`ends_on` window**, weekly = day-of-week in `days_of_week` **and within the
+window**, none = exact date match), and joins in that date's completion row if one exists
+(defaulting to `not_done`). This is why a daily task's checkbox resets each day — the
+completion is per-date, not on the task itself. `'skipped'` reuses this same per-date row
+to delete a single occurrence of a recurring task without touching the task itself or its
+other dates — the occurrence is filtered out during expansion, same as
+`'done'`/`'not_done'` otherwise flow through.
+
+**Recurrence window** (`backend/src/routes/tasks.ts#withinRecurrenceWindow`): a recurring
+task only expands into occurrences between `starts_on` and `ends_on`, both set server-side
+(never client-supplied) — `starts_on` is always "today" at creation time and `ends_on` is
+`starts_on` + `RECURRENCE_MONTHS` (currently 3). Two consequences: a newly-added recurring
+task never retroactively shows up on past dates before it existed, and it stops generating
+new occurrences ~3 months out rather than forever, so it needs re-adding (or a future
+"extend" action, not built yet) past that point. Editing a task (`PUT /api/tasks/:id`)
+does **not** reset an already-recurring task's window — only switching *into* recurrence
+from a one-off task starts a fresh one, since the old task never had a window to begin
+with.
+
+**Homework tracking** (`backend/src/routes/tasks.ts#nextOccurrenceOfSubject`): marking
+homework as assigned on occurrence date D doesn't just flag D — it finds the *next* class
+of the same subject and writes `homework_due = true` onto that occurrence's completion row
+(creating it if it doesn't exist yet). "Same subject" is resolved by **title, not task
+id**: a school subject is often entered as several separate same-titled tasks rather than
+one task with multiple `days_of_week` (e.g. a Monday-only "Maths" task and an unrelated
+Thursday-only "Maths" task row) — different weekdays can even have different times. So
+`nextOccurrenceOfSubject` looks up every task owned by the same person with a
+case-insensitive matching `title` and `category`, computes each one's own next occurrence
+after D, and picks whichever comes soonest — which may land on a *different* task id than
+the one homework was marked on. This is why "homework due" shows up automatically on the
+next class of the same subject (even the very next day, or a same-week second occurrence)
+with no cross-date lookup needed at read time: each occurrence's row already carries its
+own `homework_due`/`homework_done` state. Unassigning (`assigned: false`) recomputes the
+same lookup and clears `homework_due`/`homework_done` on that same target. `homework_done`
+can only usefully be set on an occurrence where `homework_due` is true — the frontend only
+exposes the control then, though the backend doesn't enforce it.
 
 ## API reference
 
@@ -96,6 +130,8 @@ All routes except `/api/auth/*` require `Authorization: Bearer <jwt>`.
 | PUT | `/api/tasks/:id` | same fields as POST minus `ownerId` | Full update of a task. |
 | DELETE | `/api/tasks/:id` | `?date=` optional | No `date` (or task is `recurrence='none'`): deletes the task and all its completions (cascade). With `date` on a recurring task: leaves the task alone and marks just that date `'skipped'` instead. |
 | POST | `/api/tasks/:id/complete` | `{date, status}` | Upserts the completion row for that date. |
+| POST | `/api/tasks/:id/homework-assigned` | `{date, assigned}` | Marks (or unmarks) that the class on `date` gave homework. Writes `homework_due = assigned` onto the *next occurrence of the same subject* — found by title/category match across the owner's tasks, which may be a different task id (see Data model). 400 if no upcoming occurrence is found. |
+| POST | `/api/tasks/:id/homework-done` | `{date, done}` | Sets `homework_done` for the occurrence on `date`. |
 
 ### Access control
 

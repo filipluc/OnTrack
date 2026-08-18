@@ -12,10 +12,14 @@ export default function DayView({
   occurrences,
   onToggle,
   onDelete,
+  onSetHomeworkAssigned,
+  onSetHomeworkDone,
 }: {
   occurrences: Occurrence[];
   onToggle: (occurrence: Occurrence) => void;
   onDelete: (occurrence: Occurrence) => void;
+  onSetHomeworkAssigned: (occurrence: Occurrence, assigned: boolean) => void;
+  onSetHomeworkDone: (occurrence: Occurrence, done: boolean) => void;
 }) {
   if (occurrences.length === 0) {
     return <p className="empty-state">Nothing scheduled for this day yet.</p>;
@@ -27,22 +31,45 @@ export default function DayView({
     <ul className="task-list">
       {sorted.map((occ) => (
         <li key={`${occ.id}-${occ.date}`} className={`task-item ${occ.status === "done" ? "done" : ""}`}>
-          <label className="task-check">
-            <input type="checkbox" checked={occ.status === "done"} onChange={() => onToggle(occ)} />
-          </label>
-          <div className="task-info">
-            <span className={`category-badge cat-${occ.category}`}>{CATEGORY_LABELS[occ.category]}</span>
-            <span className="task-title">{occ.title}</span>
-            {occ.startTime && (
-              <span className="task-time">
-                {occ.startTime}
-                {occ.endTime ? ` – ${occ.endTime}` : ""}
-              </span>
-            )}
+          <div className="task-main">
+            <label className="task-check">
+              <input type="checkbox" checked={occ.status === "done"} onChange={() => onToggle(occ)} />
+            </label>
+            <div className="task-info">
+              <span className={`category-badge cat-${occ.category}`}>{CATEGORY_LABELS[occ.category]}</span>
+              <span className="task-title">{occ.title}</span>
+              {occ.startTime && (
+                <span className="task-time">
+                  {occ.startTime}
+                  {occ.endTime ? ` – ${occ.endTime}` : ""}
+                </span>
+              )}
+            </div>
+            <button className="delete-btn" title="Delete task" onClick={() => onDelete(occ)}>
+              ✕
+            </button>
           </div>
-          <button className="delete-btn" title="Delete task" onClick={() => onDelete(occ)}>
-            ✕
-          </button>
+          {occ.category === "school" && (
+            <div className="homework-row">
+              <button
+                type="button"
+                className={`homework-toggle-btn ${occ.homeworkAssigned ? "active" : ""}`}
+                onClick={() => onSetHomeworkAssigned(occ, !occ.homeworkAssigned)}
+              >
+                {occ.homeworkAssigned ? "✓ Homework given" : "+ Homework given?"}
+              </button>
+              {occ.homeworkDue && (
+                <label className={`homework-toggle homework-due ${occ.homeworkDone ? "done" : "not-done"}`}>
+                  <input
+                    type="checkbox"
+                    checked={occ.homeworkDone}
+                    onChange={() => onSetHomeworkDone(occ, !occ.homeworkDone)}
+                  />
+                  Homework for today
+                </label>
+              )}
+            </div>
+          )}
         </li>
       ))}
     </ul>
