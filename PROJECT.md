@@ -22,6 +22,7 @@ don't let it drift out of sync with reality.
 | 2026-08-18 | Local repo pushed to GitHub: `https://github.com/filipluc/OnTrack` (private), branch `main`. |
 | 2026-08-18 | Cloud host chosen: **Render (backend) + Neon (Postgres)**, both free tiers, no credit card. Trade-off vs. Fly.io+SQLite: free forever but Render's free tier has no persistent disk, so this requires the backend to use a real database instead of a SQLite file. **Backend migrated from `better-sqlite3` to `pg`/Postgres** (`backend/src/db.ts` and all route queries) to make this possible. |
 | 2026-08-18 | Neon project created; `DATABASE_URL` added to `backend/.env` (gitignored, never committed). Full golden path (signup → add child → child adds/completes tasks → parent sees updates) plus permission checks re-verified against the live Neon database — all passed. Test data cleared from Neon afterward so it starts clean for real use. |
+| 2026-08-18 | Backend deployed to Render as `ontrack-api` (`https://ontrack-api-2zdi.onrender.com`), confirmed live. Frontend hosting chosen: **Render Static Site**, same account as the backend. `render.yaml` extended with a second (`static`) service for `frontend/`, `VITE_API_BASE_URL` baked in at build time via that service's env var, plus an SPA rewrite (`/*` → `/index.html`) for client-side routing. |
 
 **Project location:** `C:\Github\OnTrack` — full architecture, data model, API
 reference, and env var docs live in [`docs/TECHNICAL.md`](docs/TECHNICAL.md).
@@ -58,13 +59,15 @@ Done:
 2. ~~Put that connection string in `backend/.env` as `DATABASE_URL`, verify against a
    real Postgres.~~ Verified 2026-08-18 — see decision log.
 
-Still to do — needs manual dashboard steps only the user can do (account creation):
-3. Create a Render account, deploy `render.yaml` as a Blueprint (or a manual Web Service
-   pointed at `backend/`), set `DATABASE_URL` there too (same Neon string, or a separate
-   Neon branch for prod vs. dev).
-4. Set `VITE_API_BASE_URL` to the Render service's URL when building the frontend for
-   production.
-5. Re-verify the golden path end-to-end against the deployed backend.
+Done:
+3. ~~Create a Render account, deploy `render.yaml` as a Blueprint, set `DATABASE_URL`.~~
+   Backend live at `https://ontrack-api-2zdi.onrender.com`.
+
+Still to do — needs manual dashboard steps only the user can do:
+4. Sync the updated `render.yaml` (adds the `ontrack-frontend` static site) in the Render
+   dashboard so it picks up the new service and deploys the frontend.
+5. Re-verify the golden path end-to-end against the deployed backend + frontend, from an
+   actual phone.
 
 **Phase 3 — Android packaging: not started.** Depends on Phase 2. Plan: `npx cap init`
 + `npx cap add android` inside `frontend/`, requires Android Studio + SDK (not yet

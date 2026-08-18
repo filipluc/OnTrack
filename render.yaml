@@ -13,3 +13,17 @@ services:
         sync: false
       - key: PORT
         value: 4000
+  - type: web
+    name: ontrack-frontend
+    runtime: static
+    rootDir: frontend
+    plan: free
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://ontrack-api-2zdi.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
