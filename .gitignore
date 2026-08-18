@@ -6,3 +6,4 @@ dist/
 *.sqlite-wal
 *.sqlite-shm
 android/
+.claude/settings.local.json
