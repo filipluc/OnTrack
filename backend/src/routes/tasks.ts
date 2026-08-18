@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db } from "../db.js";
+import { pool } from "../db.js";
 import { requireAuth, type AuthedRequest } from "../auth.js";
 
 export const tasksRouter = Router();
@@ -20,21 +20,20 @@ interface TaskRow {
 }
 
 /** A parent may act on their own account or a linked child's; a child may only act on their own. */
-function canAccessUser(req: AuthedRequest, targetUserId: number): boolean {
+async function canAccessUser(req: AuthedRequest, targetUserId: number): Promise<boolean> {
   const user = req.user!;
   if (user.id === targetUserId) return true;
   if (user.role !== "parent") return false;
-  const child = db
-    .prepare("SELECT id FROM users WHERE id = ? AND parent_id = ?")
-    .get(targetUserId, user.id);
-  return !!child;
+  const result = await pool.query("SELECT id FROM users WHERE id = $1 AND parent_id = $2", [
+    targetUserId,
+    user.id,
+  ]);
+  return result.rows.length > 0;
 }
 
-function ownerOfTask(taskId: number): number | undefined {
-  const row = db.prepare("SELECT owner_id FROM tasks WHERE id = ?").get(taskId) as
-    | { owner_id: number }
-    | undefined;
-  return row?.owner_id;
+async function ownerOfTask(taskId: number): Promise<number | undefined> {
+  const result = await pool.query<{ owner_id: number }>("SELECT owner_id FROM tasks WHERE id = $1", [taskId]);
+  return result.rows[0]?.owner_id;
 }
 
 function datesInRange(from: string, to: string): string[] {
@@ -48,7 +47,7 @@ function datesInRange(from: string, to: string): string[] {
   return dates;
 }
 
-tasksRouter.get("/", (req: AuthedRequest, res) => {
+tasksRouter.get("/", async (req: AuthedRequest, res) => {
   const userId = Number(req.query.userId);
   const from = String(req.query.from ?? "");
   const to = String(req.query.to ?? "");
@@ -56,19 +55,19 @@ tasksRouter.get("/", (req: AuthedRequest, res) => {
     res.status(400).json({ error: "userId, from and to are required" });
     return;
   }
-  if (!canAccessUser(req, userId)) {
+  if (!(await canAccessUser(req, userId))) {
     res.status(403).json({ error: "Not allowed to view this schedule" });
     return;
   }
 
-  const tasks = db.prepare("SELECT * FROM tasks WHERE owner_id = ?").all(userId) as TaskRow[];
-  const completions = db
-    .prepare(
-      `SELECT task_id, date, status FROM task_completions
-       WHERE task_id IN (SELECT id FROM tasks WHERE owner_id = ?) AND date BETWEEN ? AND ?`
-    )
-    .all(userId, from, to) as { task_id: number; date: string; status: string }[];
-  const completionMap = new Map(completions.map((c) => [`${c.task_id}:${c.date}`, c.status]));
+  const tasksResult = await pool.query<TaskRow>("SELECT * FROM tasks WHERE owner_id = $1", [userId]);
+  const tasks = tasksResult.rows;
+  const completionsResult = await pool.query<{ task_id: number; date: string; status: string }>(
+    `SELECT task_id, date, status FROM task_completions
+     WHERE task_id IN (SELECT id FROM tasks WHERE owner_id = $1) AND date BETWEEN $2 AND $3`,
+    [userId, from, to]
+  );
+  const completionMap = new Map(completionsResult.rows.map((c) => [`${c.task_id}:${c.date}`, c.status]));
 
   const dates = datesInRange(from, to);
   const occurrences = [];
@@ -97,23 +96,21 @@ tasksRouter.get("/", (req: AuthedRequest, res) => {
   res.json({ occurrences });
 });
 
-tasksRouter.post("/", (req: AuthedRequest, res) => {
+tasksRouter.post("/", async (req: AuthedRequest, res) => {
   const { ownerId, title, category, recurrence, daysOfWeek, date, startTime, endTime } = req.body ?? {};
   if (!ownerId || !title || !category || !recurrence) {
     res.status(400).json({ error: "ownerId, title, category and recurrence are required" });
     return;
   }
-  if (!canAccessUser(req, ownerId)) {
+  if (!(await canAccessUser(req, ownerId))) {
     res.status(403).json({ error: "Not allowed to add tasks for this user" });
     return;
   }
 
-  const result = db
-    .prepare(
-      `INSERT INTO tasks (owner_id, title, category, recurrence, days_of_week, date, start_time, end_time, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
+  const result = await pool.query<{ id: number }>(
+    `INSERT INTO tasks (owner_id, title, category, recurrence, days_of_week, date, start_time, end_time, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+    [
       ownerId,
       title,
       category,
@@ -122,59 +119,61 @@ tasksRouter.post("/", (req: AuthedRequest, res) => {
       date ?? null,
       startTime ?? null,
       endTime ?? null,
-      req.user!.id
-    );
+      req.user!.id,
+    ]
+  );
 
-  res.status(201).json({ id: result.lastInsertRowid });
+  res.status(201).json({ id: result.rows[0].id });
 });
 
-tasksRouter.put("/:id", (req: AuthedRequest, res) => {
+tasksRouter.put("/:id", async (req: AuthedRequest, res) => {
   const taskId = Number(req.params.id);
-  const ownerId = ownerOfTask(taskId);
+  const ownerId = await ownerOfTask(taskId);
   if (!ownerId) {
     res.status(404).json({ error: "Task not found" });
     return;
   }
-  if (!canAccessUser(req, ownerId)) {
+  if (!(await canAccessUser(req, ownerId))) {
     res.status(403).json({ error: "Not allowed to edit this task" });
     return;
   }
 
   const { title, category, recurrence, daysOfWeek, date, startTime, endTime } = req.body ?? {};
-  db.prepare(
-    `UPDATE tasks SET title = ?, category = ?, recurrence = ?, days_of_week = ?, date = ?, start_time = ?, end_time = ?
-     WHERE id = ?`
-  ).run(
-    title,
-    category,
-    recurrence,
-    Array.isArray(daysOfWeek) ? daysOfWeek.join(",") : null,
-    date ?? null,
-    startTime ?? null,
-    endTime ?? null,
-    taskId
+  await pool.query(
+    `UPDATE tasks SET title = $1, category = $2, recurrence = $3, days_of_week = $4, date = $5, start_time = $6, end_time = $7
+     WHERE id = $8`,
+    [
+      title,
+      category,
+      recurrence,
+      Array.isArray(daysOfWeek) ? daysOfWeek.join(",") : null,
+      date ?? null,
+      startTime ?? null,
+      endTime ?? null,
+      taskId,
+    ]
   );
 
   res.json({ ok: true });
 });
 
-tasksRouter.delete("/:id", (req: AuthedRequest, res) => {
+tasksRouter.delete("/:id", async (req: AuthedRequest, res) => {
   const taskId = Number(req.params.id);
-  const ownerId = ownerOfTask(taskId);
+  const ownerId = await ownerOfTask(taskId);
   if (!ownerId) {
     res.status(404).json({ error: "Task not found" });
     return;
   }
-  if (!canAccessUser(req, ownerId)) {
+  if (!(await canAccessUser(req, ownerId))) {
     res.status(403).json({ error: "Not allowed to delete this task" });
     return;
   }
 
-  db.prepare("DELETE FROM tasks WHERE id = ?").run(taskId);
+  await pool.query("DELETE FROM tasks WHERE id = $1", [taskId]);
   res.json({ ok: true });
 });
 
-tasksRouter.post("/:id/complete", (req: AuthedRequest, res) => {
+tasksRouter.post("/:id/complete", async (req: AuthedRequest, res) => {
   const taskId = Number(req.params.id);
   const { date, status } = req.body ?? {};
   if (!date || (status !== "done" && status !== "not_done")) {
@@ -182,21 +181,22 @@ tasksRouter.post("/:id/complete", (req: AuthedRequest, res) => {
     return;
   }
 
-  const ownerId = ownerOfTask(taskId);
+  const ownerId = await ownerOfTask(taskId);
   if (!ownerId) {
     res.status(404).json({ error: "Task not found" });
     return;
   }
-  if (!canAccessUser(req, ownerId)) {
+  if (!(await canAccessUser(req, ownerId))) {
     res.status(403).json({ error: "Not allowed to update this task" });
     return;
   }
 
-  db.prepare(
+  await pool.query(
     `INSERT INTO task_completions (task_id, date, status, completed_at)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT(task_id, date) DO UPDATE SET status = excluded.status, completed_at = excluded.completed_at`
-  ).run(taskId, date, status, status === "done" ? new Date().toISOString() : null);
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (task_id, date) DO UPDATE SET status = EXCLUDED.status, completed_at = EXCLUDED.completed_at`,
+    [taskId, date, status, status === "done" ? new Date().toISOString() : null]
+  );
 
   res.json({ ok: true });
 });

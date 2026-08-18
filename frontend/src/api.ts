@@ -1,4 +1,7 @@
-const API_BASE = "/api";
+// In dev, VITE_API_BASE_URL is unset and requests go through Vite's proxy to localhost.
+// In production builds (including the Capacitor-wrapped app), it must point at the
+// deployed backend, since there is no dev proxy to fall back on.
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL ?? ""}/api`;
 
 export interface AuthUser {
   id: number;
