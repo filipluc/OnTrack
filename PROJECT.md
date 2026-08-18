@@ -4,8 +4,10 @@ Family task & calendar app: an 11-year-old tracks daily routines, school classes
 sports/training with done/not-done checkboxes; parents get their own account with the
 same features plus full view/edit access to their kid's schedule.
 
-This file is the running source of truth for decisions, architecture, and status.
-Update it as the project moves — don't let it drift out of sync with reality.
+This file is the running log of decisions and status. For how the system is actually
+built, see [`docs/TECHNICAL.md`](docs/TECHNICAL.md); for how to use the app day to day,
+see [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md). Update this file as the project moves —
+don't let it drift out of sync with reality.
 
 ## Decision log
 
@@ -21,59 +23,8 @@ Update it as the project moves — don't let it drift out of sync with reality.
 | 2026-08-18 | Cloud host chosen: **Render (backend) + Neon (Postgres)**, both free tiers, no credit card. Trade-off vs. Fly.io+SQLite: free forever but Render's free tier has no persistent disk, so this requires the backend to use a real database instead of a SQLite file. **Backend migrated from `better-sqlite3` to `pg`/Postgres** (`backend/src/db.ts` and all route queries) to make this possible. |
 | 2026-08-18 | Neon project created; `DATABASE_URL` added to `backend/.env` (gitignored, never committed). Full golden path (signup → add child → child adds/completes tasks → parent sees updates) plus permission checks re-verified against the live Neon database — all passed. Test data cleared from Neon afterward so it starts clean for real use. |
 
-## Architecture
-
-**Project location:** `C:\Github\OnTrack`
-
-- `backend/` — Node.js + Express + TypeScript API
-  - Auth: email/password, bcrypt hashing, JWT (`Authorization: Bearer <token>`)
-  - DB: Postgres via `pg` (`Pool`), connection string from `DATABASE_URL` env var. Schema
-    is created on startup (`initSchema()` in `backend/src/db.ts`, idempotent `CREATE TABLE
-    IF NOT EXISTS`). Intended for Neon in both local dev and production.
-  - `backend/.env` (gitignored) holds `PORT`, `JWT_SECRET`, `DATABASE_URL` — see
-    `backend/.env.example` for the shape.
-- `frontend/` — React + TypeScript + Vite SPA
-  - Calls the API via `${VITE_API_BASE_URL}/api/...`
-  - In dev, `VITE_API_BASE_URL` is left unset, so requests hit relative `/api/...` and
-    Vite's proxy (`frontend/vite.config.ts`) forwards them to `http://localhost:4000`
-  - In production builds (including the Capacitor-wrapped app), `VITE_API_BASE_URL` must
-    be set to the deployed backend's origin at build time — see `frontend/.env.example`
-- `render.yaml` — Render Blueprint for the backend web service (`rootDir: backend`,
-  `npm run build` / `npm start`, `DATABASE_URL` set manually in the Render dashboard,
-  `JWT_SECRET` auto-generated)
-- Android (phase 3, after cloud deployment): Capacitor wraps the built frontend into a native Android project
-
-### Data model
-
-- **users**: `id, name, email, password_hash, role ('parent' | 'child'), parent_id (nullable FK → users.id, set for child accounts)`
-- **tasks**: `id, owner_id (FK → users.id), title, category ('school' | 'sport' | 'routine' | 'leisure' | 'other'), recurrence ('none' | 'daily' | 'weekly'), days_of_week (nullable, comma-separated 0=Sun..6=Sat), date (nullable, for one-off), start_time, end_time, created_by (FK → users.id)`
-- **task_completions**: `id, task_id (FK), date, status ('done' | 'not_done'), completed_at` — one row per task per calendar date, so a recurring task's "done" state resets each day
-
-Recurring tasks are stored once and expanded on the fly per date when building a calendar view.
-
-### API (backend/src/routes)
-
-- `POST /api/auth/signup` — creates a parent account
-- `POST /api/auth/login` — returns JWT
-- `POST /api/children` / `GET /api/children` — parent creates/lists linked child accounts
-- `GET /api/tasks?userId=&from=&to=` — expanded task occurrences for a date range
-- `POST /api/tasks`, `PUT /api/tasks/:id`, `DELETE /api/tasks/:id` — task CRUD
-- `POST /api/tasks/:id/complete` — set done/not-done for a given date
-
-Access control (`backend/src/routes/tasks.ts` `canAccessUser`): a user can always act on
-their own data; a parent can additionally act on any of their linked children's data; a
-child cannot access anyone else's data, including other children or the parent's own
-tasks. Enforced on every task and child route, verified in testing (see Status).
-
-### Frontend structure
-
-- `src/api.ts` — typed fetch client for the backend
-- `src/auth.tsx` — auth context, persists `{token, user}` to `localStorage`
-- `src/date.ts` — date helpers (ISO formatting, day-of-week labels)
-- `src/pages/` — `Login`, `Signup`, `Dashboard`
-- `src/components/` — `DayView` (task list + checkboxes), `TaskForm` (add task modal),
-  `AddChildForm` (add child modal)
-- `src/App.tsx` — routes + auth guard; `src/main.tsx` — providers (router, auth)
+**Project location:** `C:\Github\OnTrack` — full architecture, data model, API
+reference, and env var docs live in [`docs/TECHNICAL.md`](docs/TECHNICAL.md).
 
 ## Status
 
@@ -122,13 +73,7 @@ frontend build.
 
 ## Local dev
 
-```
-cd backend && npm run dev     # http://localhost:4000, needs DATABASE_URL in backend/.env
-cd frontend && npm run dev    # http://localhost:5173
-```
-
-Open `http://localhost:5173`. Requires a reachable Postgres (a Neon project works fine
-for local dev too — no local Postgres install needed).
+See [`docs/TECHNICAL.md`](docs/TECHNICAL.md#local-development).
 
 ## Open questions
 

@@ -1,0 +1,187 @@
+# OnTrack — Technical Reference
+
+Detailed reference for how the app is built. For decisions, history, and current
+status, see [`PROJECT.md`](../PROJECT.md) — this file describes the system as it stands,
+not how it got there.
+
+## Stack
+
+- **Frontend:** React + TypeScript + Vite (SPA), React Router
+- **Backend:** Node.js + Express + TypeScript
+- **Database:** Postgres, accessed via `pg` (`Pool`)
+- **Auth:** email/password with bcrypt hashing, JWT bearer tokens
+- **Hosting (target):** Neon (Postgres) + Render (backend web service)
+- **Mobile (planned):** Capacitor wraps the built frontend for Android
+
+## Repo layout
+
+```
+backend/
+  src/
+    db.ts              Postgres pool + schema init
+    auth.ts             JWT signing/verification, requireAuth middleware
+    index.ts            Express app entry point
+    routes/
+      auth.ts            signup, login
+      children.ts         parent's child-account management
+      tasks.ts             task CRUD, recurrence expansion, completion toggling
+  .env / .env.example    PORT, JWT_SECRET, DATABASE_URL
+frontend/
+  src/
+    api.ts               typed fetch client
+    auth.tsx             auth context (localStorage-backed)
+    date.ts              date helpers
+    pages/                Login, Signup, Dashboard
+    components/          DayView, TaskForm, AddChildForm
+  .env / .env.example    VITE_API_BASE_URL
+render.yaml              Render Blueprint for the backend service
+```
+
+## Data model
+
+**users**
+| column | type | notes |
+|---|---|---|
+| id | serial PK | |
+| name | text | |
+| email | text | unique, used as login |
+| password_hash | text | bcrypt |
+| role | text | `'parent'` \| `'child'` |
+| parent_id | int, nullable | FK → users.id; set only on child accounts |
+
+**tasks**
+| column | type | notes |
+|---|---|---|
+| id | serial PK | |
+| owner_id | int | FK → users.id — whose schedule this task is on |
+| title | text | |
+| category | text | `'school'` \| `'sport'` \| `'routine'` \| `'leisure'` \| `'other'` |
+| recurrence | text | `'none'` \| `'daily'` \| `'weekly'` |
+| days_of_week | text, nullable | comma-separated ints, 0=Sun..6=Sat; only used when `recurrence='weekly'` |
+| date | text, nullable | `YYYY-MM-DD`; only used when `recurrence='none'` |
+| start_time / end_time | text, nullable | `HH:MM`, optional either way |
+| created_by | int | FK → users.id — who added it (parent or the child themself) |
+
+**task_completions**
+| column | type | notes |
+|---|---|---|
+| id | serial PK | |
+| task_id | int | FK → tasks.id, `ON DELETE CASCADE` |
+| date | text | `YYYY-MM-DD` — which occurrence this completion is for |
+| status | text | `'done'` \| `'not_done'` |
+| completed_at | text, nullable | ISO timestamp, set when marked done |
+
+Unique constraint on `(task_id, date)` — one completion row per task per day. Recurring
+tasks are stored once and **expanded on read**: for a given date range, the backend
+walks each date, checks which tasks occur on it (daily = always, weekly = day-of-week
+in `days_of_week`, none = exact date match), and joins in that date's completion row if
+one exists (defaulting to `not_done`). This is why a daily task's checkbox resets each
+day — the completion is per-date, not on the task itself.
+
+## API reference
+
+All routes except `/api/auth/*` require `Authorization: Bearer <jwt>`.
+
+| Method | Path | Body / query | Notes |
+|---|---|---|---|
+| POST | `/api/auth/signup` | `{name, email, password}` | Creates a **parent** account. Returns `{token, user}`. |
+| POST | `/api/auth/login` | `{email, password}` | Works for parent or child accounts. Returns `{token, user}`. |
+| GET | `/api/children` | — | Parent only. Lists their linked children. |
+| POST | `/api/children` | `{name, email, password}` | Parent only. Creates a child account linked to the caller. |
+| GET | `/api/tasks` | `?userId=&from=&to=` | Returns `{occurrences}` — expanded per-date task instances in the range, inclusive. |
+| POST | `/api/tasks` | `{ownerId, title, category, recurrence, daysOfWeek?, date?, startTime?, endTime?}` | Creates a task. |
+| PUT | `/api/tasks/:id` | same fields as POST minus `ownerId` | Full update of a task. |
+| DELETE | `/api/tasks/:id` | — | Deletes a task and all its completions (cascade). |
+| POST | `/api/tasks/:id/complete` | `{date, status}` | Upserts the completion row for that date. |
+
+### Access control
+
+`canAccessUser(req, targetUserId)` in `backend/src/routes/tasks.ts` is the single choke
+point:
+- A user can always act on their own `userId`.
+- A parent can additionally act on any `userId` that is one of their linked children
+  (checked via `parent_id` in the `users` table).
+- A child can never act on anyone else's `userId` — not the parent's, not a sibling's.
+
+Every task route and the children routes call through this (or the equivalent
+`role === 'parent'` check for `/api/children`). A failed check returns `403`, an
+unauthenticated request returns `401` (from `requireAuth` in `backend/src/auth.ts`),
+a task id that doesn't exist returns `404`.
+
+## Frontend
+
+- **State:** no global store beyond React context. `AuthProvider` (`src/auth.tsx`) holds
+  `{token, user}`, persisted to `localStorage` under `ontrack_token` / `ontrack_user`.
+  `Dashboard` owns the rest (selected child, selected date, occurrences) as local state.
+- **Routing:** `/login`, `/signup`, `/` (Dashboard, behind `RequireAuth`).
+- **API client** (`src/api.ts`): thin typed wrapper over `fetch`, attaches the bearer
+  token from `localStorage`, throws on non-2xx with the server's `{error}` message.
+- **Task occurrences vs. tasks:** the frontend only ever deals in *occurrences* (one
+  per date, from `GET /api/tasks`) for display; it never fetches raw `tasks` rows. Add
+  and delete operate on the underlying task by id (`occurrence.id`), which affects every
+  future occurrence of a recurring task — there's no "edit just this one instance."
+
+## Environment variables
+
+**backend/.env**
+| var | required | notes |
+|---|---|---|
+| `PORT` | no (defaults 4000) | |
+| `JWT_SECRET` | yes | long random string; Render's Blueprint auto-generates one |
+| `DATABASE_URL` | yes | Postgres connection string, e.g. from Neon (`...?sslmode=require`) |
+
+**frontend/.env**
+| var | required | notes |
+|---|---|---|
+| `VITE_API_BASE_URL` | no in dev, yes in production builds | origin only, no trailing slash or `/api` suffix, e.g. `https://ontrack-api.onrender.com`. Unset in dev so requests go through Vite's `/api` proxy to `localhost:4000` (see `vite.config.ts`). |
+
+Both `.env` files are gitignored; `.env.example` in each folder documents the shape
+without real secrets.
+
+## Local development
+
+```
+cd backend && npm run dev     # tsx watch, http://localhost:4000
+cd frontend && npm run dev    # vite, http://localhost:5173
+```
+
+Needs `backend/.env` with a working `DATABASE_URL` — a Neon project works fine for this
+too, no local Postgres install required. Schema is created automatically on first
+backend startup (`initSchema()`, idempotent).
+
+## Deployment
+
+- **Database:** Neon project, free tier. Connection string goes into `DATABASE_URL`.
+- **Backend:** `render.yaml` Blueprint at the repo root — Render reads it and creates a
+  web service with `rootDir: backend`, `npm install && npm run build` as the build
+  command, `npm start` to run. `JWT_SECRET` is auto-generated by the Blueprint;
+  `DATABASE_URL` must be set manually in the Render dashboard (marked `sync: false` in
+  the Blueprint so it isn't committed anywhere).
+- **Frontend:** built with `VITE_API_BASE_URL` set to the Render service's URL
+  (`npm run build` inside `frontend/`, reading `.env.production` or an env var at build
+  time). The static output in `frontend/dist/` is what a static host would serve, and
+  what Capacitor wraps for Android.
+
+## Planned: Android packaging (Capacitor)
+
+Not started yet — depends on the frontend having a working absolute `VITE_API_BASE_URL`
+pointed at the deployed backend (Capacitor apps have no dev proxy).
+
+1. `npx cap init` and `npx cap add android` inside `frontend/`
+2. Requires Android Studio + Android SDK (not installed on the dev machine as of
+   2026-08-18; Node 22 and Java 17 already are)
+3. `npm run build` then `npx cap sync` after every frontend change, open in Android
+   Studio to run on an emulator or device
+
+## Security notes
+
+- Passwords are hashed with bcrypt (`bcryptjs`, cost factor 10), never stored or logged
+  in plaintext.
+- JWTs are signed with `JWT_SECRET`, expire after 30 days (`backend/src/auth.ts`), and
+  carry only `{id, role}` — no PII in the token payload.
+- All cross-user access goes through `canAccessUser`; there is no endpoint that trusts a
+  client-supplied `userId` without checking it against the caller's own id or their
+  linked children.
+- CORS is currently wide open (`app.use(cors())` with no origin restriction) — fine
+  while the frontend origin isn't fixed yet, but worth tightening to the actual deployed
+  frontend origin once that's stable.
