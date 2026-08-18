@@ -43,9 +43,13 @@ export async function initSchema() {
       id SERIAL PRIMARY KEY,
       task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
       date TEXT NOT NULL,
-      status TEXT NOT NULL CHECK (status IN ('done', 'not_done')),
+      status TEXT NOT NULL CHECK (status IN ('done', 'not_done', 'skipped')),
       completed_at TEXT,
       UNIQUE(task_id, date)
     );
+
+    ALTER TABLE task_completions DROP CONSTRAINT IF EXISTS task_completions_status_check;
+    ALTER TABLE task_completions ADD CONSTRAINT task_completions_status_check
+      CHECK (status IN ('done', 'not_done', 'skipped'));
   `);
 }

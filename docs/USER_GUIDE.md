@@ -25,7 +25,9 @@ to go through, and no invite code to share.
 
 - **Switch schedules:** tap "My schedule" or your child's name at the top to see either
   view. Parents can see and edit both; a child only ever sees their own.
-- **Change day:** use the "‹ Prev" / "Next ›" buttons to move between days.
+- **Change day:** tap any day in the week strip at the top to jump straight to it — a small
+  dot marks days that already have something scheduled. Use the "‹" / "›" arrows above the
+  strip to move to the previous or next week.
 - **Add a task:** tap **+ Add task**, fill in:
   - **Title** — what it is (e.g. "Soccer practice")
   - **Category** — School, Sport, Routine, Leisure, or Other (shows as a colored tag)
@@ -34,9 +36,10 @@ to go through, and no invite code to share.
   - **Start/end time** — optional
 - **Mark done:** tap the checkbox next to a task. For repeating tasks, this only marks
   *that day's* occurrence — a daily task's checkbox resets fresh every morning.
-- **Delete a task:** tap the ✕ next to it. This removes every future (and past)
-  occurrence of that task, not just one day's — there's currently no way to skip a
-  single instance of a repeating task without deleting the whole thing.
+- **Delete a task:** tap the ✕ next to it. For a repeating task, you're asked whether to
+  delete **only this day** (skips just that one occurrence, the rest of the schedule stays)
+  or **all occurrences** (removes the whole repeating task). A one-off task just asks you
+  to confirm, since there's only one occurrence to remove either way.
 
 ## Who can see and do what
 

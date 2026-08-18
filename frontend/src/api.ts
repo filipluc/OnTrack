@@ -100,8 +100,10 @@ export function addTask(task: NewTask) {
   });
 }
 
-export function deleteTask(id: number) {
-  return request<{ ok: true }>(`/tasks/${id}`, { method: "DELETE" });
+/** Pass `date` to delete just that occurrence of a recurring task; omit it to delete the whole task. */
+export function deleteTask(id: number, date?: string) {
+  const query = date ? `?date=${date}` : "";
+  return request<{ ok: true }>(`/tasks/${id}${query}`, { method: "DELETE" });
 }
 
 export function setTaskStatus(id: number, date: string, status: "done" | "not_done") {

@@ -124,6 +124,19 @@ button:disabled {
   color: var(--text);
 }
 
+.danger {
+  background: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 0.7rem 1rem;
+  font-weight: 600;
+}
+
+.danger:hover {
+  background: #b91c1c;
+}
+
 /* Dashboard */
 .dashboard {
   max-width: 640px;
@@ -176,14 +189,94 @@ button:disabled {
   border-color: var(--primary);
 }
 
-.day-nav {
+.week-strip {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.week-strip-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--card);
-  border-radius: var(--radius);
-  padding: 0.9rem 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.7rem;
+}
+
+.week-month-label {
+  font-weight: 600;
+}
+
+.week-nav-btn {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 1.3rem;
+  line-height: 1;
+  padding: 0.2rem 0.6rem;
+}
+
+.week-nav-btn:hover {
+  color: var(--primary);
+}
+
+.week-days {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.week-day {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 0.5rem 0.2rem;
+  color: var(--text);
+}
+
+.week-day-name {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.week-day-num {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.week-day.today .week-day-num {
+  color: var(--primary);
+}
+
+.week-day.selected {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.week-day.selected .week-day-name,
+.week-day.selected .week-day-num {
+  color: white;
+}
+
+.week-day-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--primary);
+  visibility: hidden;
+}
+
+.week-day-dot.visible {
+  visibility: visible;
+}
+
+.week-day.selected .week-day-dot.visible {
+  background: white;
 }
 
 .day-label {
@@ -191,6 +284,7 @@ button:disabled {
   flex-direction: column;
   align-items: center;
   text-align: center;
+  margin-bottom: 1rem;
 }
 
 .day-label span {

@@ -80,6 +80,8 @@ tasksRouter.get("/", async (req: AuthedRequest, res) => {
         (task.recurrence === "weekly" &&
           (task.days_of_week ?? "").split(",").map(Number).includes(dow));
       if (!occurs) continue;
+      const status = completionMap.get(`${task.id}:${date}`) ?? "not_done";
+      if (status === "skipped") continue;
       occurrences.push({
         id: task.id,
         title: task.title,
@@ -88,7 +90,7 @@ tasksRouter.get("/", async (req: AuthedRequest, res) => {
         startTime: task.start_time,
         endTime: task.end_time,
         date,
-        status: completionMap.get(`${task.id}:${date}`) ?? "not_done",
+        status,
       });
     }
   }
@@ -159,13 +161,31 @@ tasksRouter.put("/:id", async (req: AuthedRequest, res) => {
 
 tasksRouter.delete("/:id", async (req: AuthedRequest, res) => {
   const taskId = Number(req.params.id);
-  const ownerId = await ownerOfTask(taskId);
-  if (!ownerId) {
+  const date = typeof req.query.date === "string" ? req.query.date : undefined;
+
+  const taskResult = await pool.query<{ owner_id: number; recurrence: string }>(
+    "SELECT owner_id, recurrence FROM tasks WHERE id = $1",
+    [taskId]
+  );
+  const task = taskResult.rows[0];
+  if (!task) {
     res.status(404).json({ error: "Task not found" });
     return;
   }
-  if (!(await canAccessUser(req, ownerId))) {
+  if (!(await canAccessUser(req, task.owner_id))) {
     res.status(403).json({ error: "Not allowed to delete this task" });
+    return;
+  }
+
+  if (date && task.recurrence !== "none") {
+    // Skip just this one occurrence, leaving the recurring task and its other dates intact.
+    await pool.query(
+      `INSERT INTO task_completions (task_id, date, status, completed_at)
+       VALUES ($1, $2, 'skipped', NULL)
+       ON CONFLICT (task_id, date) DO UPDATE SET status = 'skipped', completed_at = NULL`,
+      [taskId, date]
+    );
+    res.json({ ok: true });
     return;
   }
 

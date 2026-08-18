@@ -44,7 +44,7 @@ render.yaml              Render Blueprint for the backend service
 |---|---|---|
 | id | serial PK | |
 | name | text | |
-| email | text | unique, used as login |
+| email | text | used as login; **not unique** — a child may share their parent's email, so login/signup disambiguate by email+password together, not email alone |
 | password_hash | text | bcrypt |
 | role | text | `'parent'` \| `'child'` |
 | parent_id | int, nullable | FK → users.id; set only on child accounts |
@@ -68,7 +68,7 @@ render.yaml              Render Blueprint for the backend service
 | id | serial PK | |
 | task_id | int | FK → tasks.id, `ON DELETE CASCADE` |
 | date | text | `YYYY-MM-DD` — which occurrence this completion is for |
-| status | text | `'done'` \| `'not_done'` |
+| status | text | `'done'` \| `'not_done'` \| `'skipped'` |
 | completed_at | text, nullable | ISO timestamp, set when marked done |
 
 Unique constraint on `(task_id, date)` — one completion row per task per day. Recurring
@@ -76,7 +76,10 @@ tasks are stored once and **expanded on read**: for a given date range, the back
 walks each date, checks which tasks occur on it (daily = always, weekly = day-of-week
 in `days_of_week`, none = exact date match), and joins in that date's completion row if
 one exists (defaulting to `not_done`). This is why a daily task's checkbox resets each
-day — the completion is per-date, not on the task itself.
+day — the completion is per-date, not on the task itself. `'skipped'` reuses this same
+per-date row to delete a single occurrence of a recurring task without touching the
+task itself or its other dates — the occurrence is filtered out during expansion, same
+as `'done'`/`'not_done'` otherwise flow through.
 
 ## API reference
 
@@ -91,7 +94,7 @@ All routes except `/api/auth/*` require `Authorization: Bearer <jwt>`.
 | GET | `/api/tasks` | `?userId=&from=&to=` | Returns `{occurrences}` — expanded per-date task instances in the range, inclusive. |
 | POST | `/api/tasks` | `{ownerId, title, category, recurrence, daysOfWeek?, date?, startTime?, endTime?}` | Creates a task. |
 | PUT | `/api/tasks/:id` | same fields as POST minus `ownerId` | Full update of a task. |
-| DELETE | `/api/tasks/:id` | — | Deletes a task and all its completions (cascade). |
+| DELETE | `/api/tasks/:id` | `?date=` optional | No `date` (or task is `recurrence='none'`): deletes the task and all its completions (cascade). With `date` on a recurring task: leaves the task alone and marks just that date `'skipped'` instead. |
 | POST | `/api/tasks/:id/complete` | `{date, status}` | Upserts the completion row for that date. |
 
 ### Access control
@@ -112,14 +115,21 @@ a task id that doesn't exist returns `404`.
 
 - **State:** no global store beyond React context. `AuthProvider` (`src/auth.tsx`) holds
   `{token, user}`, persisted to `localStorage` under `ontrack_token` / `ontrack_user`.
-  `Dashboard` owns the rest (selected child, selected date, occurrences) as local state.
+  `Dashboard` owns the rest (selected child, selected date, the current week's
+  occurrences) as local state.
 - **Routing:** `/login`, `/signup`, `/` (Dashboard, behind `RequireAuth`).
 - **API client** (`src/api.ts`): thin typed wrapper over `fetch`, attaches the bearer
   token from `localStorage`, throws on non-2xx with the server's `{error}` message.
 - **Task occurrences vs. tasks:** the frontend only ever deals in *occurrences* (one
-  per date, from `GET /api/tasks`) for display; it never fetches raw `tasks` rows. Add
-  and delete operate on the underlying task by id (`occurrence.id`), which affects every
-  future occurrence of a recurring task — there's no "edit just this one instance."
+  per date, from `GET /api/tasks`) for display; it never fetches raw `tasks` rows.
+- **Week view:** `Dashboard` fetches occurrences for the whole Monday–Sunday week
+  containing the selected date in one call (`date.ts#getWeekDates`), and derives both
+  the day's task list and which days in `WeekStrip` get a dot from that same set —
+  avoids re-fetching per day as you tap around within a week.
+- **Delete flow:** `DeleteTaskDialog` branches on `occurrence.recurrence`. A one-off task
+  (`'none'`) just confirms and calls `deleteTask(id)`. A recurring task offers "only this
+  day" (`deleteTask(id, date)` — skips just that occurrence) vs. "all occurrences"
+  (`deleteTask(id)` — removes the whole task).
 
 ## Environment variables
 
