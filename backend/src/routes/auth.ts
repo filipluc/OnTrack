@@ -21,9 +21,12 @@ authRouter.post("/signup", async (req, res) => {
     return;
   }
 
-  const existing = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
-  if (existing.rows.length > 0) {
-    res.status(409).json({ error: "Email already in use" });
+  const existing = await pool.query<{ password_hash: string }>(
+    "SELECT password_hash FROM users WHERE email = $1",
+    [email]
+  );
+  if (existing.rows.some((row) => bcrypt.compareSync(password, row.password_hash))) {
+    res.status(409).json({ error: "An account with this email and password already exists" });
     return;
   }
 
@@ -46,8 +49,8 @@ authRouter.post("/login", async (req, res) => {
   }
 
   const result = await pool.query<UserRow>("SELECT * FROM users WHERE email = $1", [email]);
-  const user = result.rows[0];
-  if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+  const user = result.rows.find((row) => bcrypt.compareSync(password, row.password_hash));
+  if (!user) {
     res.status(401).json({ error: "Invalid email or password" });
     return;
   }

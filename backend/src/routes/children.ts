@@ -27,9 +27,12 @@ childrenRouter.post("/", async (req: AuthedRequest, res) => {
     return;
   }
 
-  const existing = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
-  if (existing.rows.length > 0) {
-    res.status(409).json({ error: "Email already in use" });
+  const existing = await pool.query<{ password_hash: string }>(
+    "SELECT password_hash FROM users WHERE email = $1",
+    [email]
+  );
+  if (existing.rows.some((row) => bcrypt.compareSync(password, row.password_hash))) {
+    res.status(409).json({ error: "An account with this email and password already exists" });
     return;
   }
 

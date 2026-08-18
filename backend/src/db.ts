@@ -17,11 +17,14 @@ export async function initSchema() {
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
+      email TEXT NOT NULL,
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL CHECK (role IN ('parent', 'child')),
       parent_id INTEGER REFERENCES users(id)
     );
+
+    ALTER TABLE users DROP CONSTRAINT IF EXISTS users_email_key;
+    CREATE INDEX IF NOT EXISTS users_email_idx ON users (email);
 
     CREATE TABLE IF NOT EXISTS tasks (
       id SERIAL PRIMARY KEY,
