@@ -19,6 +19,7 @@ Update it as the project moves — don't let it drift out of sync with reality.
 | 2026-08-18 | Android packaging needs the backend reachable from a phone independent of any PC being on. Two options weighed: keep the PC as the server (LAN-only, free, but only works at home with the PC on) vs. deploy the backend to the cloud (works anywhere, needs a host). **Decided: deploy to the cloud** before doing Android packaging. |
 | 2026-08-18 | Local repo pushed to GitHub: `https://github.com/filipluc/OnTrack` (private), branch `main`. |
 | 2026-08-18 | Cloud host chosen: **Render (backend) + Neon (Postgres)**, both free tiers, no credit card. Trade-off vs. Fly.io+SQLite: free forever but Render's free tier has no persistent disk, so this requires the backend to use a real database instead of a SQLite file. **Backend migrated from `better-sqlite3` to `pg`/Postgres** (`backend/src/db.ts` and all route queries) to make this possible. |
+| 2026-08-18 | Neon project created; `DATABASE_URL` added to `backend/.env` (gitignored, never committed). Full golden path (signup → add child → child adds/completes tasks → parent sees updates) plus permission checks re-verified against the live Neon database — all passed. Test data cleared from Neon afterward so it starts clean for real use. |
 
 ## Architecture
 
@@ -101,23 +102,18 @@ Code-side work done (2026-08-18):
 - `render.yaml` Blueprint added for one-shot Render setup.
 - `backend/.env.example` and `frontend/.env.example` added documenting required vars.
 
+Done:
+1. ~~Create a free Neon project, get its Postgres connection string.~~
+2. ~~Put that connection string in `backend/.env` as `DATABASE_URL`, verify against a
+   real Postgres.~~ Verified 2026-08-18 — see decision log.
+
 Still to do — needs manual dashboard steps only the user can do (account creation):
-1. Create a free Neon project, get its Postgres connection string.
-2. Put that connection string in `backend/.env` as `DATABASE_URL` (local dev) — once
-   done, verify the migrated backend actually works against a real Postgres (not yet
-   tested against real Postgres, only type-checked, since no local Postgres was
-   reachable in the dev environment — see Verification note below).
 3. Create a Render account, deploy `render.yaml` as a Blueprint (or a manual Web Service
    pointed at `backend/`), set `DATABASE_URL` there too (same Neon string, or a separate
    Neon branch for prod vs. dev).
 4. Set `VITE_API_BASE_URL` to the Render service's URL when building the frontend for
    production.
 5. Re-verify the golden path end-to-end against the deployed backend.
-
-**Verification note:** the Postgres migration type-checks cleanly but has **not** been
-run against a live database yet — this machine has a local PostgreSQL 15 service
-installed but stopped, and starting it needs admin rights not available in this
-session. First real test will happen once `DATABASE_URL` is set (step 2 above).
 
 **Phase 3 — Android packaging: not started.** Depends on Phase 2. Plan: `npx cap init`
 + `npx cap add android` inside `frontend/`, requires Android Studio + SDK (not yet
