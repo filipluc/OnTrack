@@ -6,6 +6,12 @@ export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
+// Neon (and pooled Postgres generally) can drop idle connections at any time.
+// Without this listener, that error is unhandled and crashes the whole process.
+pool.on("error", (err) => {
+  console.error("Unexpected error on idle Postgres client", err);
+});
+
 export async function initSchema() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
