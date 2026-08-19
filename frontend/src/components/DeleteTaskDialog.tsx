@@ -1,4 +1,5 @@
 import type { Occurrence } from "../api";
+import { useEscapeKey } from "../useEscapeKey";
 
 export default function DeleteTaskDialog({
   occurrence,
@@ -12,6 +13,7 @@ export default function DeleteTaskDialog({
   onDeleteAll: () => void;
 }) {
   const isRecurring = occurrence.recurrence !== "none";
+  useEscapeKey(onCancel);
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>

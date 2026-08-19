@@ -305,14 +305,36 @@ never another user's.
   avoids re-fetching per day as you tap around within a week. Each day shows one small
   colored dot per distinct category scheduled that day (`Dashboard#categoriesForDate`,
   capped at 4), not just a single generic "something's on" dot.
-- **Day timeline** (`DayView.tsx`): tasks with a time render on a positioned time-grid
-  (15-minute slots, `SLOT_PX = 13` — 52px/hour, chosen so drag/resize can snap to
-  quarter/half/full hours) instead of a flat list — `layoutDay()` computes each
-  block's `grid-row` from its start/end time and greedily assigns a `grid-column` so
-  overlapping tasks sit side by side (classic interval-graph coloring, one shared column
-  count for the whole day rather than per-cluster, which is simpler at the cost of
-  occasionally wasting a column). The grid's hour range defaults to 06:00–22:00 but
-  stretches to fit anything scheduled outside that. Each block's own content
+- **Day timeline** (`DayView.tsx`, layout math extracted to `components/dayLayout.ts` so it
+  can be unit-tested and imported without pulling in JSX): tasks with a time render on a
+  positioned time-grid (15-minute slots, `SLOT_PX = 18` — 72px/hour, chosen so drag/resize
+  can snap to quarter/half/full hours) instead of a flat list — `layoutDay()` computes each
+  block's `grid-row` (via `computeBlockRows()`) from its start/end time and greedily
+  assigns a `grid-column` so conflicting tasks sit side by side (classic interval-graph
+  coloring, one shared column count for the whole day rather than per-cluster, which is
+  simpler at the cost of occasionally wasting a column).
+
+  Two tasks "conflict" (and must sit in separate columns) if either they genuinely overlap
+  by real time, **or** stacking them would leave the earlier one below a legible minimum
+  height (`MIN_LEGIBLE_ROWS = 2` rows, i.e. under a 30-minute gap between their *start*
+  times) — a single `conflicts()` test drives both the column packing and each block's
+  `spansFull` flag, so a pair split into columns for legibility never also both claim the
+  full width. `spansFull` is true when a block doesn't conflict with *anything* else that
+  day, letting it render at the grid's full width (`2 / span columns`) even on a day where
+  some unrelated pair of tasks elsewhere pushed the day's column count above 1 — without
+  this, every block that day would be squeezed to a fraction of the screen width (and its
+  title truncated more aggressively) just because of a conflict somewhere else entirely.
+  For a pair that *does* share a column, `maxEnd` caps how far the earlier block's
+  minimum-height inflation can stretch, clamped to the real start of whatever's next in its
+  own column (`Infinity` if nothing follows there); `computeBlockRows()` also floors the
+  row math itself (not just the raw minute value) at `maxEnd`, since rounding the end
+  *up* to the nearest slot line independently of the next block's start rounding *down*
+  could otherwise let the two creep past each other by a sliver on a boundary that isn't a
+  multiple of 15 minutes. `MIN_LEGIBLE_ROWS` is also enforced as a hard floor inside
+  `computeBlockRows()` in case a `maxEnd` cap would go below it — in practice this never
+  fires given the packing buffer above already guarantees enough room, but it stays as a
+  defensive minimum for the function on its own. The grid's hour range defaults to
+  06:00–22:00 but stretches to fit anything scheduled outside that. Each block's own content
   (`.timeline-block-main`) is a single-row 4-column CSS Grid — `auto auto minmax(0,1fr)
   auto` — for checkbox, category badge, title (truncates with an ellipsis rather than
   wrapping), and, only on a School task with `homeworkDue`, an always-visible
@@ -488,6 +510,16 @@ never another user's.
   back to hidden **is** the save confirmation, rather than a separate spinner/toast. A
   small 📝 next to the title (same slot as the homework dot) previews that a note exists
   without opening the block.
+- **Closing modals** (`useEscapeKey.ts`): every `.modal-backdrop` dialog (TaskForm,
+  AddChildForm, DeleteTaskDialog, EditScopeDialog, EditOccurrenceForm,
+  ResetPasswordDialog) closes on Escape via a shared `useEscapeKey(onCancel)` hook, on top
+  of the click-outside-the-backdrop behavior they already had (`onClick={onCancel}` on the
+  backdrop, `onClick={(e) => e.stopPropagation()}` on the modal content itself so clicks
+  inside don't bubble up and close it). The day-timeline's expanded task-detail popover
+  (`TimelineBlock`, not a `.modal-backdrop` dialog — no full-screen overlay) gets the same
+  two behaviors bespoke: `useEscapeKey` collapses it, and a `document`-level `click`
+  listener (added only while `expanded`, checking `!blockRef.current.contains(e.target)`)
+  collapses it on any click outside the block.
 
 ## Environment variables
 

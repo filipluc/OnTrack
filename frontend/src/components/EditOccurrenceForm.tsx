@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { updateOccurrence, type Category, type Occurrence } from "../api";
 import { CATEGORIES, CUSTOM_OPTION, FIXED_TITLES } from "./TaskForm";
+import { useEscapeKey } from "../useEscapeKey";
 
 /** "Edit only this day" — title/category/time for a single occurrence, leaving the rest of the recurring series alone. */
 export default function EditOccurrenceForm({
@@ -22,6 +23,8 @@ export default function EditOccurrenceForm({
   const [endTime, setEndTime] = useState(occurrence.endTime ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEscapeKey(onCancel);
 
   const fixedTitles = FIXED_TITLES[category];
   const isCustom = fixedTitles.length === 0 || titleChoice === CUSTOM_OPTION;

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { resetChildPassword } from "../api";
+import { useEscapeKey } from "../useEscapeKey";
 
 export default function ResetPasswordDialog({
   childId,
@@ -15,6 +16,8 @@ export default function ResetPasswordDialog({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEscapeKey(onCancel);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

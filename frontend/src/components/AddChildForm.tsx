@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { addChild } from "../api";
+import { useEscapeKey } from "../useEscapeKey";
 
 export default function AddChildForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
   const [name, setName] = useState("");
@@ -7,6 +8,8 @@ export default function AddChildForm({ onDone, onCancel }: { onDone: () => void;
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEscapeKey(onCancel);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

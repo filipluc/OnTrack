@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { addTask, getTask, updateTask, type Category, type Recurrence } from "../api";
 import { WEEKDAY_LABELS } from "../date";
+import { useEscapeKey } from "../useEscapeKey";
 
 export const CATEGORIES: { value: Category; label: string }[] = [
   { value: "school", label: "School" },
@@ -76,13 +77,7 @@ export default function TaskForm({
       .finally(() => setLoading(false));
   }, [editTaskId, defaultDate]);
 
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onCancel();
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onCancel]);
+  useEscapeKey(onCancel);
 
   const fixedTitles = FIXED_TITLES[category];
   const isCustom = fixedTitles.length === 0 || titleChoice === CUSTOM_OPTION;

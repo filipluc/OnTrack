@@ -1,4 +1,5 @@
 import type { Occurrence } from "../api";
+import { useEscapeKey } from "../useEscapeKey";
 
 /** Shown only for a recurring occurrence, before opening the actual edit form — mirrors DeleteTaskDialog's "only this day" vs "all occurrences" choice. */
 export default function EditScopeDialog({
@@ -12,6 +13,7 @@ export default function EditScopeDialog({
   onEditOne: () => void;
   onEditAll: () => void;
 }) {
+  useEscapeKey(onCancel);
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>

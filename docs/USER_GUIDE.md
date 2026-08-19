@@ -168,6 +168,9 @@ A plain checklist of a whole week, instead of one day at a time on the main sche
 - Use *Certain days each week* for a weekly class or practice (e.g. swimming every
   Tuesday and Thursday) instead of adding it one day at a time.
 - One-off events — a single game, a field trip — use **Just once** with a specific date.
+- Any popup — add/edit task, delete/edit choices, add child, reset password, or a task's
+  own detail view — closes if you press **Escape** or tap/click anywhere outside it, same
+  as tapping its own Cancel/✕.
 - The app can occasionally take ~30–50 seconds to respond the very first time it's opened
   after a while — the free backend it runs on "falls asleep" after inactivity and has to
   wake back up. A background job pings it every 10 minutes to keep this rare, but it can

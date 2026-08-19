@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Occurrence } from "../api";
+import { SLOT_MINUTES, SLOT_PX, toMinutes, minutesToTime, computeBlockRows, layoutDay, type TimedBlock } from "./dayLayout";
+import { useEscapeKey } from "../useEscapeKey";
 
 const CATEGORY_LABELS: Record<string, string> = {
   school: "School",
@@ -10,12 +12,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: "Other",
 };
 
-// 15-minute grid so drag/resize can snap to quarter/half/full hours.
-const SLOT_MINUTES = 15;
-const SLOT_PX = 13;
-const MIN_BLOCK_MINUTES = 45; // visual minimum height (checkbox/badge/title row + resize handle), independent of a task's real (possibly shorter) duration
-const DEFAULT_START_HOUR = 6;
-const DEFAULT_END_HOUR = 22;
 const DRAG_THRESHOLD_PX = 4;
 // Touch only: how long to hold before a press turns into a drag, so a normal scroll swipe
 // that starts on a block isn't hijacked. Mouse drags arm immediately (no scroll to conflict with).
@@ -33,68 +29,8 @@ type Handlers = {
   onSetTaskNote: (occurrence: Occurrence, note: string) => void;
 };
 
-export function toMinutes(t: string): number {
-  const [h, m] = t.split(":").map(Number);
-  return h * 60 + m;
-}
-
-export function minutesToTime(total: number): string {
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-}
-
 function formatHourLabel(h: number): string {
   return `${String(h).padStart(2, "0")}:00`;
-}
-
-interface TimedBlock {
-  occ: Occurrence;
-  col: number;
-}
-
-function effectiveEndMinutes(o: Occurrence): number {
-  const start = toMinutes(o.startTime!);
-  return Math.max(toMinutes(o.endTime!), start + MIN_BLOCK_MINUTES);
-}
-
-export function layoutDay(occurrences: Occurrence[]) {
-  const timed = occurrences.filter((o) => o.startTime && o.endTime);
-  const untimed = occurrences.filter((o) => !o.startTime || !o.endTime);
-
-  if (timed.length === 0) {
-    return {
-      blocks: [] as TimedBlock[],
-      untimed,
-      startHour: DEFAULT_START_HOUR,
-      endHour: DEFAULT_END_HOUR,
-      columns: 1,
-    };
-  }
-
-  const starts = timed.map((o) => toMinutes(o.startTime!));
-  const ends = timed.map((o) => effectiveEndMinutes(o));
-  const startHour = Math.min(DEFAULT_START_HOUR, Math.floor(Math.min(...starts) / 60));
-  const endHour = Math.max(DEFAULT_END_HOUR, Math.ceil(Math.max(...ends) / 60));
-
-  const sorted = [...timed].sort((a, b) => toMinutes(a.startTime!) - toMinutes(b.startTime!));
-  const columnEnds: number[] = [];
-  const blocks: TimedBlock[] = [];
-
-  for (const occ of sorted) {
-    const start = toMinutes(occ.startTime!);
-    const end = effectiveEndMinutes(occ);
-    let col = columnEnds.findIndex((endMin) => endMin <= start);
-    if (col === -1) {
-      col = columnEnds.length;
-      columnEnds.push(end);
-    } else {
-      columnEnds[col] = end;
-    }
-    blocks.push({ occ, col });
-  }
-
-  return { blocks, untimed, startHour, endHour, columns: Math.max(columnEnds.length, 1) };
 }
 
 function HomeworkAssignedToggle({
@@ -204,6 +140,7 @@ function TimelineBlock({
   handlers,
   rangeStartMin,
   rangeEndMin,
+  columns,
 }: {
   block: TimedBlock;
   expanded: boolean;
@@ -211,8 +148,9 @@ function TimelineBlock({
   handlers: Handlers;
   rangeStartMin: number;
   rangeEndMin: number;
+  columns: number;
 }) {
-  const { occ, col } = block;
+  const { occ, col, maxEnd, spansFull } = block;
   const origStart = toMinutes(occ.startTime!);
   const origEnd = toMinutes(occ.endTime!);
   const blockRef = useRef<HTMLDivElement>(null);
@@ -231,11 +169,26 @@ function TimelineBlock({
     };
   }, []);
 
+  useEscapeKey(() => {
+    if (expanded) onToggleExpand();
+  });
+
+  useEffect(() => {
+    if (!expanded) return;
+    function handleOutsideClick(e: MouseEvent) {
+      if (blockRef.current && !blockRef.current.contains(e.target as Node)) onToggleExpand();
+    }
+    document.addEventListener("click", handleOutsideClick);
+    return () => document.removeEventListener("click", handleOutsideClick);
+  }, [expanded, onToggleExpand]);
+
   const previewStart = drag ? drag.previewStart : origStart;
   const previewEnd = drag ? drag.previewEnd : origEnd;
-  const displayEnd = Math.max(previewEnd, previewStart + MIN_BLOCK_MINUTES);
-  const startRow = Math.floor((previewStart - rangeStartMin) / SLOT_MINUTES) + 1;
-  const endRow = Math.ceil((displayEnd - rangeStartMin) / SLOT_MINUTES) + 1;
+  // While actively dragging, the block shouldn't feel constrained by a neighbor it might be
+  // about to move past; once settled, cap it so it doesn't visually bleed into whatever comes
+  // right after it in the same column (see layoutDay's maxEnd).
+  const { startRow, endRow } = computeBlockRows(previewStart, previewEnd, rangeStartMin, drag ? undefined : maxEnd);
+  const gridColumn = spansFull ? `2 / span ${columns}` : String(col + 2);
 
   function snap(minutes: number): number {
     return Math.round(minutes / SLOT_MINUTES) * SLOT_MINUTES;
@@ -337,7 +290,7 @@ function TimelineBlock({
     <div
       ref={blockRef}
       className={`timeline-block cat-border-${occ.category} ${occ.status === "done" ? "done" : ""} ${expanded ? "expanded" : ""} ${drag?.armed && !drag.moved ? "armed" : ""} ${drag?.moved ? "dragging" : ""}`}
-      style={{ gridRow: `${startRow} / ${endRow}`, gridColumn: col + 2 }}
+      style={{ gridRow: `${startRow} / ${endRow}`, gridColumn }}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
@@ -525,6 +478,7 @@ export default function DayView({
                 handlers={handlers}
                 rangeStartMin={rangeStartMin}
                 rangeEndMin={rangeEndMin}
+                columns={columns}
               />
             );
           })}
