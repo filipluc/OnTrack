@@ -32,14 +32,16 @@ function today(): string {
 }
 
 /** The next date (after `fromDate`) this task occurs on, or null if it has no future occurrence. */
-function nextOccurrenceDate(task: TaskRow, fromDate: string): string | null {
+export function nextOccurrenceDate(task: TaskRow, fromDate: string): string | null {
   if (task.recurrence === "none") return task.date && task.date > fromDate ? task.date : null;
   if (task.recurrence === "daily") {
     const candidate = addDays(fromDate, 1);
     return withinRecurrenceWindow(task, candidate) ? candidate : null;
   }
   if (task.recurrence === "weekly") {
-    const days = (task.days_of_week ?? "").split(",").map(Number);
+    // "".split(",") is [""], and Number("") is 0 -- filter that out first, or an empty
+    // days_of_week would be silently treated as "Sundays only" instead of "never".
+    const days = (task.days_of_week ?? "").split(",").filter(Boolean).map(Number);
     if (days.length === 0) return null;
     for (let offset = 1; offset <= 7; offset++) {
       const candidate = addDays(fromDate, offset);
@@ -122,7 +124,7 @@ tasksRouter.get("/:id", async (req: AuthedRequest, res) => {
 });
 
 /** `undefined`/`null` (no reminder) pass through as null; anything else must be a positive integer. */
-function parseRemindMinutesBefore(value: unknown): number | null | undefined {
+export function parseRemindMinutesBefore(value: unknown): number | null | undefined {
   if (value === undefined || value === null) return null;
   if (typeof value === "number" && Number.isInteger(value) && value > 0) return value;
   return undefined;

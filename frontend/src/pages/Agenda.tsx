@@ -13,9 +13,9 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: "Other",
 };
 
-type FilterMode = "all" | "homework" | "sport";
+export type FilterMode = "all" | "homework" | "sport";
 
-function matchesFilter(o: Occurrence, mode: FilterMode): boolean {
+export function matchesFilter(o: Occurrence, mode: FilterMode): boolean {
   // School homework uses the homeworkDue flag; Study tasks (extra practice, reading, etc.)
   // never get that flag, they're just a plain task -- "homework" for them means not done yet.
   if (mode === "homework") return (o.category === "school" && Boolean(o.homeworkDue)) || o.category === "study";

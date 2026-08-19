@@ -100,7 +100,9 @@ export async function getOccurrences(userId: number, from: string, to: string): 
         (task.recurrence === "daily" && withinRecurrenceWindow(task, date)) ||
         (task.recurrence === "weekly" &&
           withinRecurrenceWindow(task, date) &&
-          (task.days_of_week ?? "").split(",").map(Number).includes(dow));
+          // "".split(",") is [""], and Number("") is 0 -- without filtering that out first, a
+          // weekly task left with no configured days would be silently treated as "Sundays only".
+          (task.days_of_week ?? "").split(",").filter(Boolean).map(Number).includes(dow));
       if (!occurs) continue;
       const completion = completionMap.get(`${task.id}:${date}`);
       if (completion?.status === "skipped") continue;

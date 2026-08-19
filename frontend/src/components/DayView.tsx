@@ -33,12 +33,12 @@ type Handlers = {
   onSetTaskNote: (occurrence: Occurrence, note: string) => void;
 };
 
-function toMinutes(t: string): number {
+export function toMinutes(t: string): number {
   const [h, m] = t.split(":").map(Number);
   return h * 60 + m;
 }
 
-function minutesToTime(total: number): string {
+export function minutesToTime(total: number): string {
   const h = Math.floor(total / 60);
   const m = total % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
@@ -58,7 +58,7 @@ function effectiveEndMinutes(o: Occurrence): number {
   return Math.max(toMinutes(o.endTime!), start + MIN_BLOCK_MINUTES);
 }
 
-function layoutDay(occurrences: Occurrence[]) {
+export function layoutDay(occurrences: Occurrence[]) {
   const timed = occurrences.filter((o) => o.startTime && o.endTime);
   const untimed = occurrences.filter((o) => !o.startTime || !o.endTime);
 

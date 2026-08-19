@@ -26,7 +26,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: "Other",
 };
 
-type PeriodType = "day" | "week" | "month" | "year" | "custom";
+export type PeriodType = "day" | "week" | "month" | "year" | "custom";
 
 const PERIOD_TABS: { value: PeriodType; label: string }[] = [
   { value: "day", label: "Day" },
@@ -36,12 +36,12 @@ const PERIOD_TABS: { value: PeriodType; label: string }[] = [
   { value: "custom", label: "Custom" },
 ];
 
-function toMinutes(t: string): number {
+export function toMinutes(t: string): number {
   const [h, m] = t.split(":").map(Number);
   return h * 60 + m;
 }
 
-function formatHours(minutes: number): string {
+export function formatHours(minutes: number): string {
   if (minutes <= 0) return "0h";
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
@@ -50,7 +50,7 @@ function formatHours(minutes: number): string {
   return `${h}h ${m}m`;
 }
 
-function getRange(
+export function getRange(
   periodType: PeriodType,
   refDate: string,
   customFrom: string,
@@ -72,7 +72,7 @@ function getRange(
   }
 }
 
-function shiftPeriod(periodType: PeriodType, refDate: string, dir: 1 | -1): string {
+export function shiftPeriod(periodType: PeriodType, refDate: string, dir: 1 | -1): string {
   switch (periodType) {
     case "day":
       return addDays(refDate, dir);
@@ -87,20 +87,20 @@ function shiftPeriod(periodType: PeriodType, refDate: string, dir: 1 | -1): stri
   }
 }
 
-interface TaskAgg {
+export interface TaskAgg {
   title: string;
   scheduledMin: number;
   doneMin: number;
 }
 
-interface CategoryAgg {
+export interface CategoryAgg {
   category: Category;
   scheduledMin: number;
   doneMin: number;
   tasks: TaskAgg[];
 }
 
-function aggregate(occurrences: Occurrence[]): { categories: CategoryAgg[]; untimedCount: number } {
+export function aggregate(occurrences: Occurrence[]): { categories: CategoryAgg[]; untimedCount: number } {
   const byCategory = new Map<Category, Map<string, TaskAgg>>();
   let untimedCount = 0;
 
@@ -134,7 +134,7 @@ function aggregate(occurrences: Occurrence[]): { categories: CategoryAgg[]; unti
   return { categories, untimedCount };
 }
 
-interface StreakInfo {
+export interface StreakInfo {
   id: number;
   title: string;
   category: Category;
@@ -142,7 +142,7 @@ interface StreakInfo {
 }
 
 /** Consecutive completed occurrences of a repeating task, most recent first. Today doesn't break a streak just because it isn't done yet -- there's still time. */
-function computeStreaks(occurrences: Occurrence[], todayStr: string): StreakInfo[] {
+export function computeStreaks(occurrences: Occurrence[], todayStr: string): StreakInfo[] {
   const byTask = new Map<number, Occurrence[]>();
   for (const occ of occurrences) {
     if (occ.recurrence === "none") continue;

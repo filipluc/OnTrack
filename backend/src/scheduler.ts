@@ -25,7 +25,7 @@ function localParts(): { date: string; minutesOfDay: number } {
   };
 }
 
-function toMinutes(t: string): number {
+export function toMinutes(t: string): number {
   const [h, m] = t.split(":").map(Number);
   return h * 60 + m;
 }

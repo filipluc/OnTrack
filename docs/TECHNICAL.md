@@ -508,6 +508,41 @@ never another user's.
 Both `.env` files are gitignored; `.env.example` in each folder documents the shape
 without real secrets.
 
+## Testing
+
+Both `backend/` and `frontend/` use **Vitest** — `npm test` in either runs its suite
+once (`vitest run`). No config file needed; Vitest picks up each project's `tsconfig`
+automatically. Test files sit next to the code they cover (`*.test.ts`).
+
+Scope is deliberately **pure business logic only** — no DB, no HTTP, no rendered
+components, no simulated touch/pointer gestures:
+- **Backend**: recurrence-window math and date arithmetic (`occurrences.test.ts`),
+  next-occurrence-of-a-recurring-task and the reminder-minutes validator
+  (`routes/tasks.test.ts`), the scheduler's time parsing (`scheduler.test.ts`).
+- **Frontend**: all of `date.ts` (`date.test.ts`), Agenda's filter predicate
+  (`pages/Agenda.test.ts`), Reports' period math, hour aggregation, and streak
+  computation (`pages/Reports.test.ts`), the day-timeline's overlap/column-packing
+  layout algorithm (`components/DayView.test.ts`).
+
+A few functions that were previously module-private got an `export` added purely so
+tests can reach them (e.g. `nextOccurrenceDate`, `aggregate`, `layoutDay`) — this is
+also why some of those files pick up an extra `react(only-export-components)` oxlint
+warning (a non-component export living in a file that also exports a component,
+same category already tolerated for `TaskForm.tsx`'s `CATEGORIES`/`FIXED_TITLES` and
+`auth.tsx`'s `useAuth`). Splitting the pure logic out into its own module per page
+would silence it, but wasn't done here to avoid touching working code right after
+writing tests for it — worth doing later if it bothers you.
+
+**Explicitly out of scope, and why**: drag/resize pointer-event handling and the
+long-press gate in `DayView.tsx` (needs simulated touch timing, not worth the harness
+weight for this app's size); anything requiring a live Postgres (all the `canAccessUser`
+permission checks, the actual `INSERT`/`UPDATE` queries) — verified instead via the
+manual `curl` passes noted throughout the decision log; actual push delivery and service
+worker behavior (needs a real browser + push service). A real DB-integration suite would
+need a dedicated test database first (see the open question about a separate Neon branch
+in `PROJECT.md`) rather than running against the same database this app's real data lives
+in.
+
 ## Local development
 
 ```
