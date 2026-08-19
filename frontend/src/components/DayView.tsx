@@ -217,6 +217,12 @@ function TimelineBlock({
   const origEnd = toMinutes(occ.endTime!);
   const blockRef = useRef<HTMLDivElement>(null);
   const longPressTimer = useRef<number | null>(null);
+  // On touch, the browser can fire a compatibility "click" shortly after our own pointerup
+  // handler already expanded the block -- by then Edit/Delete may render at that same
+  // screen position and the ghost click lands on one of them. preventDefault() below stops
+  // it on spec-compliant browsers; this timestamp is a fallback that swallows any click that
+  // still slips through right after a tap-to-expand.
+  const suppressClickUntilRef = useRef(0);
   const [drag, setDrag] = useState<DragState | null>(null);
 
   useEffect(() => {
@@ -315,6 +321,8 @@ function TimelineBlock({
         handlers.onSetTaskTime(occ, minutesToTime(finalStart), minutesToTime(finalEnd));
       }
     } else {
+      e.preventDefault();
+      suppressClickUntilRef.current = Date.now() + 400;
       onToggleExpand();
     }
   }
@@ -382,7 +390,16 @@ function TimelineBlock({
       />
 
       {expanded && (
-        <div className="timeline-block-detail" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="timeline-block-detail"
+          onClick={(e) => e.stopPropagation()}
+          onClickCapture={(e) => {
+            if (Date.now() < suppressClickUntilRef.current) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }}
+        >
           <div className="timeline-detail-header">
             <span className={`category-badge cat-${occ.category}`}>{CATEGORY_LABELS[occ.category]}</span>
             <button type="button" className="timeline-detail-close" onClick={onToggleExpand}>
