@@ -16,6 +16,8 @@ import WeekStrip from "../components/WeekStrip";
 import TaskForm from "../components/TaskForm";
 import AddChildForm from "../components/AddChildForm";
 import DeleteTaskDialog from "../components/DeleteTaskDialog";
+import ResetPasswordDialog from "../components/ResetPasswordDialog";
+import ThemeToggle from "../components/ThemeToggle";
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -30,6 +32,7 @@ export default function Dashboard() {
   const [editTaskId, setEditTaskId] = useState<number | null>(null);
   const [showAddChild, setShowAddChild] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Occurrence | null>(null);
+  const [resetPasswordTarget, setResetPasswordTarget] = useState<Child | null>(null);
 
   const loadChildren = useCallback(async () => {
     if (user!.role !== "parent") return;
@@ -55,7 +58,8 @@ export default function Dashboard() {
   }, [viewedId, weekStart, weekEnd]);
 
   const dayOccurrences = weekOccurrences.filter((o) => o.date === date);
-  const hasTasks = (d: string) => weekOccurrences.some((o) => o.date === d);
+  const categoriesForDate = (d: string) =>
+    Array.from(new Set(weekOccurrences.filter((o) => o.date === d).map((o) => o.category)));
 
   useEffect(() => {
     loadChildren();
@@ -144,6 +148,7 @@ export default function Dashboard() {
       <header className="dashboard-header">
         <h1>OnTrack</h1>
         <div className="header-right">
+          <ThemeToggle />
           <span className="signed-in-as">{user!.name}</span>
           <button className="secondary" onClick={logout}>
             Log out
@@ -157,13 +162,22 @@ export default function Dashboard() {
             My schedule
           </button>
           {children.map((child) => (
-            <button
-              key={child.id}
-              className={viewedId === child.id ? "chip selected" : "chip"}
-              onClick={() => selectChild(child)}
-            >
-              {child.name}
-            </button>
+            <div key={child.id} className="chip-group">
+              <button
+                className={viewedId === child.id ? "chip selected" : "chip"}
+                onClick={() => selectChild(child)}
+              >
+                {child.name}
+              </button>
+              <button
+                type="button"
+                className="chip-icon-btn"
+                title={`Reset password for ${child.name}`}
+                onClick={() => setResetPasswordTarget(child)}
+              >
+                🔑
+              </button>
+            </div>
           ))}
           <button className="chip add-chip" onClick={() => setShowAddChild(true)}>
             + Add child
@@ -176,7 +190,7 @@ export default function Dashboard() {
         onSelect={setDate}
         onPrevWeek={() => setDate((d) => addDays(d, -7))}
         onNextWeek={() => setDate((d) => addDays(d, 7))}
-        hasTasks={hasTasks}
+        categoriesForDate={categoriesForDate}
       />
 
       <div className="day-label">
@@ -243,6 +257,15 @@ export default function Dashboard() {
           onCancel={() => setDeleteTarget(null)}
           onDeleteOne={confirmDeleteOne}
           onDeleteAll={confirmDeleteAll}
+        />
+      )}
+
+      {resetPasswordTarget && (
+        <ResetPasswordDialog
+          childId={resetPasswordTarget.id}
+          childName={resetPasswordTarget.name}
+          onCancel={() => setResetPasswordTarget(null)}
+          onDone={() => setResetPasswordTarget(null)}
         />
       )}
     </div>

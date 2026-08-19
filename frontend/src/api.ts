@@ -64,6 +64,13 @@ export function addChild(name: string, email: string, password: string) {
   });
 }
 
+export function resetChildPassword(childId: number, password: string) {
+  return request<{ ok: true }>(`/children/${childId}/password`, {
+    method: "PUT",
+    body: JSON.stringify({ password }),
+  });
+}
+
 export type Category = "school" | "sport" | "routine" | "leisure" | "study" | "other";
 export type Recurrence = "none" | "daily" | "weekly";
 

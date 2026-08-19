@@ -125,6 +125,8 @@ All routes except `/api/auth/*` require `Authorization: Bearer <jwt>`.
 | POST | `/api/auth/login` | `{email, password}` | Works for parent or child accounts. Returns `{token, user}`. |
 | GET | `/api/children` | — | Parent only. Lists their linked children. |
 | POST | `/api/children` | `{name, email, password}` | Parent only. Creates a child account linked to the caller. |
+| PUT | `/api/children/:id/password` | `{password}` | Parent only, and only for one of their own children (`parent_id` + `role='child'` checked). Resets the child's password — for when they forget it, since there's no self-service "forgot password" flow. |
+| GET | `/api/health` | — | No auth required. Returns `{ok: true}`. Pinged every 10 minutes by `.github/workflows/keep-alive.yml` so the free Render instance doesn't spin down from inactivity. |
 | GET | `/api/tasks` | `?userId=&from=&to=` | Returns `{occurrences}` — expanded per-date task instances in the range, inclusive. |
 | GET | `/api/tasks/:id` | — | Returns the full task definition (not an occurrence) — `{id, ownerId, title, category, recurrence, daysOfWeek, date, startTime, endTime}`. Used to prefill the edit form, since `GET /api/tasks` occurrences don't carry `daysOfWeek`. |
 | POST | `/api/tasks` | `{ownerId, title, category, recurrence, daysOfWeek?, date?, startTime, endTime}` | Creates a task. `startTime`/`endTime` are required (400 without both). |
@@ -170,7 +172,40 @@ a task id that doesn't exist returns `404`.
 - **Week view:** `Dashboard` fetches occurrences for the whole Monday–Sunday week
   containing the selected date in one call (`date.ts#getWeekDates`), and derives both
   the day's task list and which days in `WeekStrip` get a dot from that same set —
-  avoids re-fetching per day as you tap around within a week.
+  avoids re-fetching per day as you tap around within a week. Each day shows one small
+  colored dot per distinct category scheduled that day (`Dashboard#categoriesForDate`,
+  capped at 4), not just a single generic "something's on" dot.
+- **Day timeline** (`DayView.tsx`): tasks with a time render on a positioned time-grid
+  (30-minute slots, `SLOT_PX = 26`) instead of a flat list — `layoutDay()` computes each
+  block's `grid-row` from its start/end time and greedily assigns a `grid-column` so
+  overlapping tasks sit side by side (classic interval-graph coloring, one shared column
+  count for the whole day rather than per-cluster, which is simpler at the cost of
+  occasionally wasting a column). The grid's hour range defaults to 06:00–22:00 but
+  stretches to fit anything scheduled outside that. Each block's own content
+  (`.timeline-block-main`) is a single-row 4-column CSS Grid — `auto auto minmax(0,1fr)
+  auto` — for checkbox, category badge, title (truncates with an ellipsis rather than
+  wrapping), and, only on a School task with `homeworkDue`, an always-visible
+  `homeworkDone` checkbox pinned to the last column (`HomeworkDueCheckbox`'s `compact`
+  prop shortens its label to "HW" so it fits, `title="Homework for today"` carries the
+  full text as a tooltip; the checkbox itself stays the same size as the main
+  done-checkbox for a consistent tap target). A small blue `hw-indicator` dot next to the
+  title previews `homeworkAssigned` the same way. The block clips overflow
+  (`overflow: hidden`) to stay a well-defined rectangle; tapping it expands an
+  absolutely-positioned popover (edit/delete + the `homeworkAssigned` toggle) layered
+  above via `.timeline-block.expanded { z-index: 20; overflow: visible; }`, without
+  disturbing the grid's row sizing. Tasks missing a time (only possible on data older than
+  the mandatory-time requirement) render above the grid in a plain "No time set" list
+  instead. This single-row layout went through a few iterations (stacked badge-over-title,
+  a separate homework row below) before landing here — CSS Grid with explicit columns
+  ended up far more predictable than flex + `-webkit-line-clamp` for keeping everything
+  reliably on one line.
+- **Theme:** `ThemeToggle.tsx` toggles a `data-theme` attribute on `<html>` between
+  `"light"`/`"dark"`, persisted to `localStorage` under `ontrack_theme`; defaults to
+  `prefers-color-scheme` if nothing is stored. `index.html` sets the attribute
+  synchronously (inline `<script>` in `<head>`, before any CSS paints) to avoid a
+  light-mode flash on load. All theme-dependent colors are CSS custom properties on
+  `:root`, overridden both by `@media (prefers-color-scheme: dark)` and by
+  `:root[data-theme="dark"]` so an explicit toggle always wins over system preference.
 - **Delete flow:** `DeleteTaskDialog` branches on `occurrence.recurrence`. A one-off task
   (`'none'`) just confirms and calls `deleteTask(id)`. A recurring task offers "only this
   day" (`deleteTask(id, date)` — skips just that occurrence) vs. "all occurrences"
@@ -222,6 +257,12 @@ backend startup (`initSchema()`, idempotent).
   (`npm run build` inside `frontend/`, reading `.env.production` or an env var at build
   time). The static output in `frontend/dist/` is what a static host would serve, and
   what Capacitor wraps for Android.
+- **Keep-alive:** `.github/workflows/keep-alive.yml` pings `GET /api/health` every 10
+  minutes via a GitHub Actions cron schedule, since Render's free web-service tier spins
+  down after ~15 minutes of inactivity and the first request after that can take ~50s to
+  wake it back up. Runs regardless of whether anyone has the app open. GitHub Actions cron
+  isn't guaranteed to the minute (can slip further under platform load), so this reduces
+  cold starts rather than eliminating them entirely.
 
 ## Planned: Android packaging (Capacitor)
 

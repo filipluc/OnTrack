@@ -44,3 +44,29 @@ childrenRouter.post("/", async (req: AuthedRequest, res) => {
 
   res.status(201).json({ id: result.rows[0].id, name, email });
 });
+
+childrenRouter.put("/:id/password", async (req: AuthedRequest, res) => {
+  if (req.user!.role !== "parent") {
+    res.status(403).json({ error: "Only parents can reset a child's password" });
+    return;
+  }
+  const childId = Number(req.params.id);
+  const { password } = req.body ?? {};
+  if (!password) {
+    res.status(400).json({ error: "password is required" });
+    return;
+  }
+
+  const child = await pool.query(
+    "SELECT id FROM users WHERE id = $1 AND parent_id = $2 AND role = 'child'",
+    [childId, req.user!.id]
+  );
+  if (child.rows.length === 0) {
+    res.status(404).json({ error: "Child not found" });
+    return;
+  }
+
+  const passwordHash = bcrypt.hashSync(password, 10);
+  await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [passwordHash, childId]);
+  res.json({ ok: true });
+});

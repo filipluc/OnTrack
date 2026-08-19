@@ -21,35 +21,51 @@ view of everyone's schedule.
 You create your child's account for them — there's no separate sign-up step they need
 to go through, and no invite code to share.
 
+If your child forgets their password, tap the **🔑** next to their name in the schedule
+switcher and set a new one — there's no self-service "forgot password" for kids, only a
+parent can reset it.
+
 ## Everyday use
 
 - **Switch schedules:** tap "My schedule" or your child's name at the top to see either
   view. Parents can see and edit both; a child only ever sees their own.
-- **Change day:** tap any day in the week strip at the top to jump straight to it — a small
-  dot marks days that already have something scheduled. Use the "‹" / "›" arrows above the
-  strip to move to the previous or next week.
+- **Change day:** tap any day in the week strip at the top to jump straight to it — a
+  small colored dot per category (school, sport, etc.) marks days that already have
+  something scheduled, so you can tell at a glance what kind of day it is. Use the "‹" /
+  "›" arrows above the strip to move to the previous or next week.
+- **Day view:** tasks with a time show as blocks positioned on a time grid, like a
+  calendar — roughly where and how long they are in the day, and side by side if two
+  things overlap. Each block shows its checkbox, colored category tag, and title on one
+  line. Tap a block to open it and see the full details and actions; tap the **✕** in the
+  corner (or the block again) to close it. The checkbox to mark it done is always visible
+  without opening the block.
 - **Add a task:** tap **+ Add task**, fill in:
-  - **Category** — School, Sport, Routine, Leisure, Study, or Other (shows as a colored tag)
+  - **Category** — School, Study, Sport, Routine, Leisure, or Other (shows as a colored tag)
   - **Title** — pick from a fixed list for that category (e.g. School → Mate, Romana,
     Istorie, Geografie, Sport), or choose **Other…** for a free-text title. Other has no
     fixed list and always asks for a title directly.
   - **Repeats** — *Just once* (pick a date), *Every day*, or *Certain days each week*
     (pick which weekdays)
-  - **Start/end time** — required
-- **Mark done:** tap the checkbox next to a task. For repeating tasks, this only marks
+  - **Start/end time** — required, and what places the task on the day's time grid
+- **Mark done:** tap the checkbox on a task's block. For repeating tasks, this only marks
   *that day's* occurrence — a daily task's checkbox resets fresh every morning.
-- **Edit a task:** tap the ✎ next to it to change any of the above (category, title,
-  repeats, time). Editing applies to every occurrence of that task — there's no way to
-  change just one instance of a repeating task.
-- **Delete a task:** tap the ✕ next to it. For a repeating task, you're asked whether to
-  delete **only this day** (skips just that one occurrence, the rest of the schedule stays)
-  or **all occurrences** (removes the whole repeating task). A one-off task just asks you
-  to confirm, since there's only one occurrence to remove either way.
-- **Track homework:** on any **School** task, tap **"+ Homework given?"** if that class
-  assigned homework — it turns into **"✓ Homework given"**; tap again to undo. The task's
-  *next* occurrence (same subject, next time it's on the schedule) automatically shows a
-  **"Homework for today"** checkbox — red while it's still outstanding, green once ticked.
-  That checkbox only appears on the day the homework is actually due.
+- **Edit a task:** tap it to open it, then tap **✎**, to change any of the above
+  (category, title, repeats, time). Editing applies to every occurrence of that task —
+  there's no way to change just one instance of a repeating task.
+- **Delete a task:** tap it to open it, then tap **✕ Delete**. For a repeating task,
+  you're asked whether to delete **only this day** (skips just that one occurrence, the
+  rest of the schedule stays) or **all occurrences** (removes the whole repeating task).
+  A one-off task just asks you to confirm, since there's only one occurrence to remove
+  either way.
+- **Track homework:** open any **School** task and tap **"+ Homework given?"** if that
+  class assigned homework — it turns into **"✓ Homework given"**; tap again to undo. The
+  task's *next* occurrence (same subject, next time it's on the schedule) automatically
+  shows a **"Homework for today"** checkbox directly on its block — no need to open it —
+  red while it's still outstanding, green once ticked. That checkbox only appears on the
+  day the homework is actually due. A small blue dot on a School task's block is a
+  preview that homework was given, without needing to open it.
+- **Dark mode:** tap the 🌙 / ☀️ button in the top-right corner to switch. It remembers
+  your choice; without one, it follows your device's system setting.
 
 ## Who can see and do what
 
@@ -65,3 +81,7 @@ to go through, and no invite code to share.
 - Use *Certain days each week* for a weekly class or practice (e.g. swimming every
   Tuesday and Thursday) instead of adding it one day at a time.
 - One-off events — a single game, a field trip — use **Just once** with a specific date.
+- The app can occasionally take ~30–50 seconds to respond the very first time it's opened
+  after a while — the free backend it runs on "falls asleep" after inactivity and has to
+  wake back up. A background job pings it every 10 minutes to keep this rare, but it can
+  still happen. Just wait a moment; it only affects that first request.

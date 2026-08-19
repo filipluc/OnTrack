@@ -1,3 +1,4 @@
+import type { Category } from "../api";
 import { formatDayNumber, formatMonthYear, formatWeekdayShort, getWeekDates, toISODate } from "../date";
 
 export default function WeekStrip({
@@ -5,13 +6,13 @@ export default function WeekStrip({
   onSelect,
   onPrevWeek,
   onNextWeek,
-  hasTasks,
+  categoriesForDate,
 }: {
   selectedDate: string;
   onSelect: (date: string) => void;
   onPrevWeek: () => void;
   onNextWeek: () => void;
-  hasTasks: (date: string) => boolean;
+  categoriesForDate: (date: string) => Category[];
 }) {
   const today = toISODate(new Date());
   const weekDates = getWeekDates(selectedDate);
@@ -31,6 +32,7 @@ export default function WeekStrip({
         {weekDates.map((date) => {
           const isSelected = date === selectedDate;
           const isToday = date === today;
+          const categories = categoriesForDate(date);
           return (
             <button
               key={date}
@@ -40,7 +42,11 @@ export default function WeekStrip({
             >
               <span className="week-day-name">{formatWeekdayShort(date)}</span>
               <span className="week-day-num">{formatDayNumber(date)}</span>
-              <span className={`week-day-dot${hasTasks(date) ? " visible" : ""}`} />
+              <span className="week-day-dots">
+                {categories.slice(0, 4).map((cat) => (
+                  <span key={cat} className={`week-day-dot cat-dot-${cat}`} />
+                ))}
+              </span>
             </button>
           );
         })}

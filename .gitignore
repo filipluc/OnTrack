@@ -7,3 +7,4 @@ dist/
 *.sqlite-shm
 android/
 .claude/settings.local.json
+*.tsbuildinfo
