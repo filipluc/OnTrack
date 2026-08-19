@@ -143,8 +143,9 @@ tasksRouter.get("/", async (req: AuthedRequest, res) => {
     homework_assigned: boolean;
     homework_due: boolean;
     homework_done: boolean;
+    note: string | null;
   }>(
-    `SELECT task_id, date, status, homework_assigned, homework_due, homework_done FROM task_completions
+    `SELECT task_id, date, status, homework_assigned, homework_due, homework_done, note FROM task_completions
      WHERE task_id IN (SELECT id FROM tasks WHERE owner_id = $1) AND date BETWEEN $2 AND $3`,
     [userId, from, to]
   );
@@ -176,6 +177,7 @@ tasksRouter.get("/", async (req: AuthedRequest, res) => {
         homeworkAssigned: completion?.homework_assigned ?? false,
         homeworkDue: completion?.homework_due ?? false,
         homeworkDone: completion?.homework_done ?? false,
+        note: completion?.note ?? null,
       });
     }
   }
@@ -454,6 +456,36 @@ tasksRouter.post("/:id/homework-done", async (req: AuthedRequest, res) => {
      VALUES ($1, $2, 'not_done', $3)
      ON CONFLICT (task_id, date) DO UPDATE SET homework_done = EXCLUDED.homework_done`,
     [taskId, date, done]
+  );
+
+  res.json({ ok: true });
+});
+
+/** Free-text note on a single occurrence (e.g. what was covered at that day's training). */
+tasksRouter.post("/:id/note", async (req: AuthedRequest, res) => {
+  const taskId = Number(req.params.id);
+  const { date, note } = req.body ?? {};
+  if (!date || typeof note !== "string") {
+    res.status(400).json({ error: "date and note (string) are required" });
+    return;
+  }
+
+  const ownerId = await ownerOfTask(taskId);
+  if (!ownerId) {
+    res.status(404).json({ error: "Task not found" });
+    return;
+  }
+  if (!(await canAccessUser(req, ownerId))) {
+    res.status(403).json({ error: "Not allowed to update this task" });
+    return;
+  }
+
+  const trimmed = note.trim();
+  await pool.query(
+    `INSERT INTO task_completions (task_id, date, status, note)
+     VALUES ($1, $2, 'not_done', $3)
+     ON CONFLICT (task_id, date) DO UPDATE SET note = EXCLUDED.note`,
+    [taskId, date, trimmed || null]
   );
 
   res.json({ ok: true });

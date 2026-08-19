@@ -89,6 +89,8 @@ export interface Occurrence {
   homeworkDue: boolean;
   /** Only meaningful when homeworkDue is true. */
   homeworkDone: boolean;
+  /** Free-text note on this occurrence (e.g. what was covered at that day's training). */
+  note: string | null;
 }
 
 export function getTasks(userId: number, from: string, to: string) {
@@ -180,5 +182,13 @@ export function setHomeworkDone(id: number, date: string, done: boolean) {
   return request<{ ok: true }>(`/tasks/${id}/homework-done`, {
     method: "POST",
     body: JSON.stringify({ date, done }),
+  });
+}
+
+/** Set (or clear, with an empty string) the note on this occurrence. */
+export function setTaskNote(id: number, date: string, note: string) {
+  return request<{ ok: true }>(`/tasks/${id}/note`, {
+    method: "POST",
+    body: JSON.stringify({ date, note }),
   });
 }

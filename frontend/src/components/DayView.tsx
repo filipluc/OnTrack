@@ -30,6 +30,7 @@ type Handlers = {
   onSetHomeworkAssigned: (occurrence: Occurrence, assigned: boolean) => void;
   onSetHomeworkDone: (occurrence: Occurrence, done: boolean) => void;
   onSetTaskTime: (occurrence: Occurrence, startTime: string, endTime: string) => void;
+  onSetTaskNote: (occurrence: Occurrence, note: string) => void;
 };
 
 function toMinutes(t: string): number {
@@ -147,6 +148,39 @@ function HomeworkControls({
     <div className="homework-row">
       <HomeworkAssignedToggle occ={occ} onSetHomeworkAssigned={onSetHomeworkAssigned} />
       {occ.homeworkDue && <HomeworkDueCheckbox occ={occ} onSetHomeworkDone={onSetHomeworkDone} />}
+    </div>
+  );
+}
+
+function NoteField({
+  occ,
+  onSetTaskNote,
+}: {
+  occ: Occurrence;
+  onSetTaskNote: (occurrence: Occurrence, note: string) => void;
+}) {
+  const [draft, setDraft] = useState(occ.note ?? "");
+
+  useEffect(() => {
+    setDraft(occ.note ?? "");
+  }, [occ.note]);
+
+  const dirty = draft.trim() !== (occ.note ?? "");
+
+  return (
+    <div className="note-field">
+      <textarea
+        className="note-textarea"
+        placeholder="Add a note…"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        rows={5}
+      />
+      {dirty && (
+        <button type="button" className="secondary note-save-btn" onClick={() => onSetTaskNote(occ, draft)}>
+          Save note
+        </button>
+      )}
     </div>
   );
 }
@@ -316,6 +350,11 @@ function TimelineBlock({
           {occ.category === "school" && occ.homeworkAssigned && (
             <span className="hw-indicator hw-assigned" title="Homework given" />
           )}
+          {occ.note && (
+            <span className="note-indicator" title="Has a note">
+              📝
+            </span>
+          )}
         </span>
         {occ.category === "school" && occ.homeworkDue && (
           <div
@@ -362,6 +401,7 @@ function TimelineBlock({
               <HomeworkAssignedToggle occ={occ} onSetHomeworkAssigned={handlers.onSetHomeworkAssigned} />
             </div>
           )}
+          <NoteField occ={occ} onSetTaskNote={handlers.onSetTaskNote} />
         </div>
       )}
     </div>
@@ -376,9 +416,18 @@ export default function DayView({
   onSetHomeworkAssigned,
   onSetHomeworkDone,
   onSetTaskTime,
+  onSetTaskNote,
 }: Handlers & { occurrences: Occurrence[] }) {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
-  const handlers: Handlers = { onToggle, onEdit, onDelete, onSetHomeworkAssigned, onSetHomeworkDone, onSetTaskTime };
+  const handlers: Handlers = {
+    onToggle,
+    onEdit,
+    onDelete,
+    onSetHomeworkAssigned,
+    onSetHomeworkDone,
+    onSetTaskTime,
+    onSetTaskNote,
+  };
 
   if (occurrences.length === 0) {
     return <p className="empty-state">Nothing scheduled for this day yet.</p>;
@@ -415,6 +464,7 @@ export default function DayView({
               {occ.category === "school" && (
                 <HomeworkControls occ={occ} onSetHomeworkAssigned={onSetHomeworkAssigned} onSetHomeworkDone={onSetHomeworkDone} />
               )}
+              <NoteField occ={occ} onSetTaskNote={onSetTaskNote} />
             </li>
           ))}
         </ul>

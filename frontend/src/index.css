@@ -632,6 +632,38 @@ a.secondary {
   background: var(--primary);
 }
 
+.note-indicator {
+  font-size: 0.65rem;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.note-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.note-textarea {
+  width: 100%;
+  min-height: 6rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.note-save-btn {
+  align-self: flex-end;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+}
+
 .timeline-hw-due {
   justify-self: end;
 }
@@ -650,7 +682,7 @@ a.secondary {
   position: absolute;
   top: 0;
   left: 0;
-  min-width: 220px;
+  width: min(90vw, 300px);
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);

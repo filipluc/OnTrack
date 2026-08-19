@@ -9,6 +9,7 @@ import {
   setHomeworkAssigned,
   setHomeworkDone,
   setTaskTime,
+  setTaskNote,
   type Child,
   type Occurrence,
 } from "../api";
@@ -125,6 +126,19 @@ export default function Dashboard() {
     }
   }
 
+  async function handleSetTaskNote(occ: Occurrence, note: string) {
+    const trimmed = note.trim();
+    setWeekOccurrences((prev) =>
+      prev.map((o) => (o.id === occ.id && o.date === occ.date ? { ...o, note: trimmed || null } : o))
+    );
+    try {
+      await setTaskNote(occ.id, occ.date, trimmed);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save note");
+      loadTasks();
+    }
+  }
+
   function handleEdit(occ: Occurrence) {
     setEditTaskId(occ.id);
   }
@@ -230,6 +244,7 @@ export default function Dashboard() {
           onSetHomeworkAssigned={handleSetHomeworkAssigned}
           onSetHomeworkDone={handleSetHomeworkDone}
           onSetTaskTime={handleSetTaskTime}
+          onSetTaskNote={handleSetTaskNote}
         />
       )}
 

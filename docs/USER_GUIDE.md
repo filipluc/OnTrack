@@ -71,6 +71,11 @@ parent can reset it.
   red while it's still outstanding, green once ticked. That checkbox only appears on the
   day the homework is actually due. A small blue dot on a School task's block is a
   preview that homework was given, without needing to open it.
+- **Add a note:** open any task and write in the note box at the bottom — e.g. what was
+  covered at that day's training. A **Save note** button appears once you've typed
+  something new, and disappears again once it's saved. Works on any task, not just
+  School, and is specific to that one day (a repeating task's other days each have their
+  own note). A small 📝 on a task's block previews that it has a note.
 - **Dark mode:** tap the 🌙 / ☀️ button in the top-right corner to switch. It remembers
   your choice; without one, it follows your device's system setting.
 

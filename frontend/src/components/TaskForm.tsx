@@ -13,7 +13,7 @@ const CATEGORIES: { value: Category; label: string }[] = [
 
 const FIXED_TITLES: Record<Category, string[]> = {
   school: ["Mate", "Romana", "Istorie", "Geografie", "Sport"],
-  sport: ["Antrenament fotbal", "Antrenament Coerver", "Sport complementar", "Meci fotbal", "Turneu"],
+  sport: ["Antrenament fotbal", "Antrenament individual", "Antrenament Coerver", "Sport complementar", "Meci fotbal", "Turneu"],
   routine: ["Spalat pe dinti", "Pregatit ghiozdan"],
   leisure: ["TV", "PS"],
   study: ["Teme scoala", "Extra Mate/Romana", "Extra Engleza", "Duolingo", "Citit"],

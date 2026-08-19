@@ -74,6 +74,7 @@ render.yaml              Render Blueprint for the backend service
 | homework_assigned | boolean | true if *this* occurrence's class gave homework (due at the task's next occurrence) |
 | homework_due | boolean | true if a previous occurrence of this task assigned homework due *on this date* |
 | homework_done | boolean | only meaningful when `homework_due` is true |
+| note | text, nullable | free-text note on this occurrence (e.g. what was covered at that day's training); trimmed server-side, empty string stored as `NULL` |
 
 Unique constraint on `(task_id, date)` — one completion row per task per day. Recurring
 tasks are stored once and **expanded on read**: for a given date range, the backend
@@ -136,6 +137,7 @@ All routes except `/api/auth/*` require `Authorization: Bearer <jwt>`.
 | POST | `/api/tasks/:id/complete` | `{date, status}` | Upserts the completion row for that date. |
 | POST | `/api/tasks/:id/homework-assigned` | `{date, assigned}` | Marks (or unmarks) that the class on `date` gave homework. Writes `homework_due = assigned` onto the *next occurrence of the same subject* — found by title/category match across the owner's tasks, which may be a different task id (see Data model). 400 if no upcoming occurrence is found. |
 | POST | `/api/tasks/:id/homework-done` | `{date, done}` | Sets `homework_done` for the occurrence on `date`. |
+| POST | `/api/tasks/:id/note` | `{date, note}` | Sets (or clears, with `""`) the free-text note for the occurrence on `date`. Trimmed server-side; an all-whitespace note stores as `NULL`. |
 
 ### Access control
 
@@ -293,6 +295,16 @@ a task id that doesn't exist returns `404`.
   anything recurring once you look further back than that task's own `starts_on` — there
   are simply no occurrences to sum before that point, by the same design that keeps
   recurring tasks from retroactively appearing in the past everywhere else in the app.
+- **Notes** (`DayView.tsx#NoteField`, shared between the expanded timeline popover and the
+  "No time set" fallback list): a plain per-occurrence textarea, not tied to any one
+  category. Keeps its own local `draft` state seeded from `occ.note` and re-synced via a
+  `useEffect` on `occ.note` (so an external update, e.g. a reload after saving, doesn't
+  fight with what's mid-typed); a "Save note" button only appears once `draft` actually
+  differs from the saved value, and disappears again the moment the optimistic update in
+  `Dashboard#handleSetTaskNote` lands and the effect re-syncs `draft` — that transition
+  back to hidden **is** the save confirmation, rather than a separate spinner/toast. A
+  small 📝 next to the title (same slot as the homework dot) previews that a note exists
+  without opening the block.
 
 ## Environment variables
 

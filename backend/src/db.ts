@@ -69,5 +69,6 @@ export async function initSchema() {
     ALTER TABLE task_completions ADD COLUMN IF NOT EXISTS homework_assigned BOOLEAN NOT NULL DEFAULT false;
     ALTER TABLE task_completions ADD COLUMN IF NOT EXISTS homework_due BOOLEAN NOT NULL DEFAULT false;
     ALTER TABLE task_completions ADD COLUMN IF NOT EXISTS homework_done BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE task_completions ADD COLUMN IF NOT EXISTS note TEXT;
   `);
 }
