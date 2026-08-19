@@ -55,6 +55,8 @@ don't let it drift out of sync with reality.
 
 | 2026-08-19 | Broadened "homework due" (both the evening push notification and Agenda's 📖 Homework filter) to also count Study tasks, on top of the existing School `homeworkDue`-flagged ones — not a replacement, both are counted. Study tasks never get the School-specific `homeworkDue`/`homeworkDone` flags (that pair only exists via the "Homework given?" → next-occurrence mechanism), so for Study, "still outstanding" just means the occurrence's own status isn't `done` yet. |
 
+| 2026-08-19 | Fixed a reported issue (initially misread as the opposite — the button covering tasks, not the other way around): the floating "+ Add task" button had no explicit `z-index`, so an expanded or actively-dragged day-timeline block (`z-index: 20`/`30`) could render in front of it, hiding the button underneath the task. Gave `.fab` `z-index: 50` — above any timeline-block state, below the modal backdrop (100) — while keeping it `position: fixed` at the bottom, as before. |
+
 **Project location:** `C:\Github\OnTrack` — full architecture, data model, API
 reference, and env var docs live in [`docs/TECHNICAL.md`](docs/TECHNICAL.md).
 

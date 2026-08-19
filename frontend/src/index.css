@@ -969,6 +969,9 @@ a.secondary {
   border-radius: 999px;
   padding: 1rem 1.6rem;
   box-shadow: 0 8px 20px rgba(79, 70, 229, 0.4);
+  /* Higher than any timeline-block state (expanded: 20, dragging: 30) so a task block never
+     renders in front of the button, only below the modal backdrop (100). */
+  z-index: 50;
 }
 
 /* Modal */
