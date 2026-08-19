@@ -57,6 +57,8 @@ don't let it drift out of sync with reality.
 
 | 2026-08-19 | Fixed a reported issue (initially misread as the opposite — the button covering tasks, not the other way around): the floating "+ Add task" button had no explicit `z-index`, so an expanded or actively-dragged day-timeline block (`z-index: 20`/`30`) could render in front of it, hiding the button underneath the task. Gave `.fab` `z-index: 50` — above any timeline-block state, below the modal backdrop (100) — while keeping it `position: fixed` at the bottom, as before. |
 
+| 2026-08-19 | Reorganized the phone header/navigation after a review that the top of the screen stacked 7 rows (title, theme/notifications, name/log out, Agenda/Reports links, schedule switcher, week strip, a repeated date/name line) before any task was visible. Sketched 3 mockups (compact single toolbar, a bottom tab bar, a grouped header card) as an artifact for comparison — picked **the bottom tab bar**. Agenda and Reports moved from top-of-page links to a persistent `TabBar` (🗓️ Schedule / ✅ Agenda / 📊 Reports) fixed to the bottom, the standard mobile pattern and within thumb reach. The header shrank to a title + small "signed in as" subtitle plus theme/notification/log-out icons; the homework-check-time picker moved out of the always-visible header into a ⚙️ popover shown only when notifications are on; the day label no longer repeats the signed-in user's own name (still shown when viewing a child's schedule, since that's meaningful there). |
+
 **Project location:** `C:\Github\OnTrack` — full architecture, data model, API
 reference, and env var docs live in [`docs/TECHNICAL.md`](docs/TECHNICAL.md).
 

@@ -95,8 +95,8 @@ parent can reset it.
     suddenly notify you about everything.
   - A **homework check** once a day (default **18:00**) if anything is still due and not
     marked done — School homework you've flagged as due, plus any not-yet-done Study task
-    (extra practice, reading, etc.). Change the time in the box that appears next to the
-    bell once notifications are on.
+    (extra practice, reading, etc.). Once notifications are on, a **⚙️** button appears
+    next to the bell — tap it to change the check time.
   Notifications are per-device, not per-account — turn them on separately on your phone
   and your child's. **On iPhone**, Safari only allows this for a site added to the home
   screen (Share → Add to Home Screen) — opened as an ordinary browser tab, the 🔔 button
@@ -110,7 +110,7 @@ parent can reset it.
 
 ## Reports
 
-Tap **Reports** in the top-right of your schedule to see totals instead of a calendar.
+Tap the **📊 Reports** tab to see totals instead of a calendar.
 
 - **Streaks:** at the top, a 🔥 card lists any repeating task with a current streak of
   done-in-a-row — e.g. "5× in a row — Spalat pe dinti". This isn't affected by whichever
@@ -132,10 +132,15 @@ Tap **Reports** in the top-right of your schedule to see totals instead of a cal
   than a few months — it's not missing data, there's just genuinely no record generated
   that far back.
 
+## Getting around
+
+Three tabs sit at the bottom of the screen: **🗓️ Schedule** (your day-by-day calendar,
+where you land after signing in), **✅ Agenda**, and **📊 Reports**. Tap any of them to
+switch — the one you're on is highlighted.
+
 ## Agenda
 
-Tap **✅ Agenda** (next to Reports) for a plain checklist of a whole week, instead of one
-day at a time on the main schedule.
+A plain checklist of a whole week, instead of one day at a time on the main schedule.
 
 - **Pick a week:** "‹" / "›" moves a week at a time; the list is grouped by day, and days
   with nothing to show are skipped entirely.

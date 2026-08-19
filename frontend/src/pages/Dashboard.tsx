@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Link } from "react-router-dom";
 import { useAuth } from "../auth";
 import {
   getChildren,
@@ -25,6 +24,7 @@ import EditOccurrenceForm from "../components/EditOccurrenceForm";
 import ResetPasswordDialog from "../components/ResetPasswordDialog";
 import ThemeToggle from "../components/ThemeToggle";
 import NotificationsToggle from "../components/NotificationsToggle";
+import TabBar from "../components/TabBar";
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -211,25 +211,18 @@ export default function Dashboard() {
   return (
     <div className="dashboard">
       <header className="dashboard-header">
-        <h1>OnTrack</h1>
+        <div className="header-title-block">
+          <h1>OnTrack</h1>
+          <span className="signed-in-as">{user!.name}</span>
+        </div>
         <div className="header-right">
           <ThemeToggle />
           <NotificationsToggle />
-          <span className="signed-in-as">{user!.name}</span>
           <button className="secondary" onClick={logout}>
             Log out
           </button>
         </div>
       </header>
-
-      <div className="secondary-nav">
-        <Link to="/agenda" className="secondary">
-          ✅ Agenda
-        </Link>
-        <Link to="/reports" className="secondary">
-          📊 Reports
-        </Link>
-      </div>
 
       {user!.role === "parent" && (
         <div className="schedule-switcher">
@@ -293,7 +286,7 @@ export default function Dashboard() {
       />
 
       <div className="day-label">
-        <strong>{viewedName}</strong>
+        {viewedId !== user!.id && <strong>{viewedName}</strong>}
         <span>{formatDisplay(date)}</span>
       </div>
 
@@ -397,6 +390,8 @@ export default function Dashboard() {
           onDone={() => setResetPasswordTarget(null)}
         />
       )}
+
+      <TabBar />
     </div>
   );
 }

@@ -14,6 +14,7 @@ export default function NotificationsToggle() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [homeworkCheckTime, setHomeworkCheckTime] = useState("18:00");
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     if (!supported) return;
@@ -21,7 +22,10 @@ export default function NotificationsToggle() {
   }, [supported]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      setShowSettings(false);
+      return;
+    }
     getNotificationSettings()
       .then(({ homeworkCheckTime }) => setHomeworkCheckTime(homeworkCheckTime))
       .catch(() => {});
@@ -78,23 +82,35 @@ export default function NotificationsToggle() {
         {enabled ? "🔔" : "🔕"}
       </button>
       {enabled && (
-        <div className="homework-check-time" title="Check for unfinished homework and remind at this time">
-          Homework check
-          <select value={hh} onChange={(e) => handleHourChange(e.target.value)} aria-label="Hour">
-            {HOURS.map((h) => (
-              <option key={h} value={h}>
-                {h}
-              </option>
-            ))}
-          </select>
-          :
-          <select value={mm} onChange={(e) => handleMinuteChange(e.target.value)} aria-label="Minute">
-            {MINUTES.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
+        <button
+          type="button"
+          className="theme-toggle-btn"
+          title="Notification settings"
+          onClick={() => setShowSettings((s) => !s)}
+        >
+          ⚙️
+        </button>
+      )}
+      {showSettings && (
+        <div className="notif-popover">
+          <label className="homework-check-time" title="Check for unfinished homework and remind at this time">
+            Homework check
+            <select value={hh} onChange={(e) => handleHourChange(e.target.value)} aria-label="Hour">
+              {HOURS.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
+            :
+            <select value={mm} onChange={(e) => handleMinuteChange(e.target.value)} aria-label="Minute">
+              {MINUTES.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       )}
       {error && <span className="notifications-error">{error}</span>}

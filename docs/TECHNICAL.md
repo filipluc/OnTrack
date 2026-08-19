@@ -278,7 +278,15 @@ never another user's.
   `Dashboard` owns the rest (selected child, selected date, the current week's
   occurrences) as local state.
 - **Routing:** `/login`, `/signup`, `/` (Dashboard, behind `RequireAuth`), `/reports`
-  (Reports, behind `RequireAuth`), `/agenda` (Agenda, behind `RequireAuth`).
+  (Reports, behind `RequireAuth`), `/agenda` (Agenda, behind `RequireAuth`). All three
+  authed pages render a shared `TabBar` (`components/TabBar.tsx`, `NavLink`s to
+  `/`/`/agenda`/`/reports`) fixed to the bottom of the screen — this is the primary way
+  to move between them, replacing an earlier top-of-page link row.
+- **Header layout:** each page's title sits in a `.header-title-block` (title +, on
+  Dashboard, the signed-in user's name as a small subtitle beneath it rather than a
+  separate row) with utility icons (`ThemeToggle`, `NotificationsToggle`, Log out) on the
+  right. Chosen after a round of mockups comparing a few ways to declutter the phone
+  screen's top — see the 2026-08-19 decision log entry for the alternatives considered.
 - **API client** (`src/api.ts`): thin typed wrapper over `fetch`, attaches the bearer
   token from `localStorage`, throws on non-2xx with the server's `{error}` message.
 - **Task occurrences vs. tasks:** the frontend only ever deals in *occurrences* (one
@@ -459,9 +467,12 @@ never another user's.
   `public/sw.js`): `NotificationsToggle` (next to `ThemeToggle` in the dashboard header,
   hidden entirely if `pushSupported()` is false) drives `enablePush()`/`disablePush()` —
   `Notification.requestPermission()` → register `sw.js` → `pushManager.subscribe()` with
-  the backend's VAPID public key → `POST /api/push/subscribe`. Once enabled, an inline
-  time input (backed by `GET`/`PUT /api/push/settings`) lets the user set their own
-  `homeworkCheckTime`. `sw.js` itself is a plain static file (not bundled by Vite) with two
+  the backend's VAPID public key → `POST /api/push/subscribe`. Once enabled, a ⚙️ button
+  appears next to the bell; tapping it opens a small `.notif-popover` (absolutely
+  positioned under the icon cluster) with the hour/minute selects for `homeworkCheckTime`
+  (backed by `GET`/`PUT /api/push/settings`) — moved out of the always-visible header row
+  it started in, so the header stays compact when notifications are on. `sw.js` itself is
+  a plain static file (not bundled by Vite) with two
   listeners: `push` shows a notification from the JSON payload, `notificationclick`
   focuses an existing tab (or opens one) at the payload's `url`. Per-task reminders are
   opt-in in `TaskForm` (a checkbox + a minutes-before number input, both omitted from the

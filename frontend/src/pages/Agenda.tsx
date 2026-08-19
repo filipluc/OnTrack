@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { useAuth } from "../auth";
 import { getChildren, getTasks, setTaskStatus, type Child, type Occurrence } from "../api";
 import { addDays, formatMonthYear, formatShortDate, formatWeekdayShort, getWeekDates, toISODate } from "../date";
+import TabBar from "../components/TabBar";
 
 const CATEGORY_LABELS: Record<string, string> = {
   school: "School",
@@ -89,12 +89,7 @@ export default function Agenda() {
   return (
     <div className="dashboard">
       <header className="dashboard-header">
-        <div className="header-left">
-          <Link to="/" className="secondary back-link">
-            ‹ Back
-          </Link>
-          <h1>Agenda</h1>
-        </div>
+        <h1>Agenda</h1>
       </header>
 
       {user!.role === "parent" && (
@@ -198,6 +193,8 @@ export default function Agenda() {
           ))}
         </div>
       )}
+
+      <TabBar />
     </div>
   );
 }

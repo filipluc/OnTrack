@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { useAuth } from "../auth";
 import { getChildren, getTasks, type Category, type Child, type Occurrence } from "../api";
 import {
@@ -16,6 +15,7 @@ import {
   startOfYear,
   toISODate,
 } from "../date";
+import TabBar from "../components/TabBar";
 
 const CATEGORY_LABELS: Record<string, string> = {
   school: "School",
@@ -228,12 +228,7 @@ export default function Reports() {
   return (
     <div className="dashboard">
       <header className="dashboard-header">
-        <div className="header-left">
-          <Link to="/" className="secondary back-link">
-            ‹ Back
-          </Link>
-          <h1>Reports</h1>
-        </div>
+        <h1>Reports</h1>
       </header>
 
       {user!.role === "parent" && (
@@ -350,6 +345,8 @@ export default function Reports() {
           )}
         </>
       )}
+
+      <TabBar />
     </div>
   );
 }
