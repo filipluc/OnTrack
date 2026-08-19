@@ -146,6 +146,14 @@ export function updateTask(id: number, task: TaskEdits) {
   });
 }
 
+/** Lightweight time-only update, for drag-to-move / drag-to-resize on the day timeline. */
+export function setTaskTime(id: number, startTime: string, endTime: string) {
+  return request<{ ok: true }>(`/tasks/${id}/time`, {
+    method: "POST",
+    body: JSON.stringify({ startTime, endTime }),
+  });
+}
+
 /** Pass `date` to delete just that occurrence of a recurring task; omit it to delete the whole task. */
 export function deleteTask(id: number, date?: string) {
   const query = date ? `?date=${date}` : "";

@@ -39,6 +39,11 @@ parent can reset it.
   line. Tap a block to open it and see the full details and actions; tap the **✕** in the
   corner (or the block again) to close it. The checkbox to mark it done is always visible
   without opening the block.
+- **Move or resize a task:** press and drag anywhere on a block (not the checkbox) up or
+  down to move it to a different time that same day; drag the small handle at the very
+  bottom edge of a block to stretch or shrink it. Both snap to the nearest quarter hour.
+  This only moves a task within the same day — dragging it to a different day isn't
+  supported yet.
 - **Add a task:** tap **+ Add task**, fill in:
   - **Category** — School, Study, Sport, Routine, Leisure, or Other (shows as a colored tag)
   - **Title** — pick from a fixed list for that category (e.g. School → Mate, Romana,

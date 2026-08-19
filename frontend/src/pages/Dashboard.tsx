@@ -7,6 +7,7 @@ import {
   deleteTask,
   setHomeworkAssigned,
   setHomeworkDone,
+  setTaskTime,
   type Child,
   type Occurrence,
 } from "../api";
@@ -111,6 +112,18 @@ export default function Dashboard() {
     }
   }
 
+  async function handleSetTaskTime(occ: Occurrence, startTime: string, endTime: string) {
+    setWeekOccurrences((prev) =>
+      prev.map((o) => (o.id === occ.id && o.date === occ.date ? { ...o, startTime, endTime } : o))
+    );
+    try {
+      await setTaskTime(occ.id, startTime, endTime);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update task time");
+      loadTasks();
+    }
+  }
+
   function handleEdit(occ: Occurrence) {
     setEditTaskId(occ.id);
   }
@@ -209,6 +222,7 @@ export default function Dashboard() {
           onDelete={handleDelete}
           onSetHomeworkAssigned={handleSetHomeworkAssigned}
           onSetHomeworkDone={handleSetHomeworkDone}
+          onSetTaskTime={handleSetTaskTime}
         />
       )}
 

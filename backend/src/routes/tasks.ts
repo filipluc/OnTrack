@@ -300,6 +300,32 @@ tasksRouter.put("/:id", async (req: AuthedRequest, res) => {
   res.json({ ok: true });
 });
 
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** Lightweight time-only update for drag-to-move / drag-to-resize on the day timeline — avoids requiring every other field like the full PUT does. */
+tasksRouter.post("/:id/time", async (req: AuthedRequest, res) => {
+  const taskId = Number(req.params.id);
+  const { startTime, endTime } = req.body ?? {};
+  if (!TIME_RE.test(startTime) || !TIME_RE.test(endTime) || startTime >= endTime) {
+    res.status(400).json({ error: "startTime and endTime must be HH:MM, with startTime before endTime" });
+    return;
+  }
+
+  const ownerId = await ownerOfTask(taskId);
+  if (!ownerId) {
+    res.status(404).json({ error: "Task not found" });
+    return;
+  }
+  if (!(await canAccessUser(req, ownerId))) {
+    res.status(403).json({ error: "Not allowed to update this task" });
+    return;
+  }
+
+  await pool.query("UPDATE tasks SET start_time = $1, end_time = $2 WHERE id = $3", [startTime, endTime, taskId]);
+
+  res.json({ ok: true });
+});
+
 tasksRouter.delete("/:id", async (req: AuthedRequest, res) => {
   const taskId = Number(req.params.id);
   const date = typeof req.query.date === "string" ? req.query.date : undefined;

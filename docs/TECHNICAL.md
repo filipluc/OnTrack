@@ -131,6 +131,7 @@ All routes except `/api/auth/*` require `Authorization: Bearer <jwt>`.
 | GET | `/api/tasks/:id` | — | Returns the full task definition (not an occurrence) — `{id, ownerId, title, category, recurrence, daysOfWeek, date, startTime, endTime}`. Used to prefill the edit form, since `GET /api/tasks` occurrences don't carry `daysOfWeek`. |
 | POST | `/api/tasks` | `{ownerId, title, category, recurrence, daysOfWeek?, date?, startTime, endTime}` | Creates a task. `startTime`/`endTime` are required (400 without both). |
 | PUT | `/api/tasks/:id` | same fields as POST minus `ownerId` | Full update of a task. `title`, `category`, `recurrence`, `startTime`, `endTime` are all required (400 if any is missing). |
+| POST | `/api/tasks/:id/time` | `{startTime, endTime}` | Time-only update — for drag-to-move / drag-to-resize on the day timeline, which shouldn't need to resend every other field the way `PUT` does. Both must be `HH:MM` with `startTime < endTime` (400 otherwise). |
 | DELETE | `/api/tasks/:id` | `?date=` optional | No `date` (or task is `recurrence='none'`): deletes the task and all its completions (cascade). With `date` on a recurring task: leaves the task alone and marks just that date `'skipped'` instead. |
 | POST | `/api/tasks/:id/complete` | `{date, status}` | Upserts the completion row for that date. |
 | POST | `/api/tasks/:id/homework-assigned` | `{date, assigned}` | Marks (or unmarks) that the class on `date` gave homework. Writes `homework_due = assigned` onto the *next occurrence of the same subject* — found by title/category match across the owner's tasks, which may be a different task id (see Data model). 400 if no upcoming occurrence is found. |
@@ -176,7 +177,8 @@ a task id that doesn't exist returns `404`.
   colored dot per distinct category scheduled that day (`Dashboard#categoriesForDate`,
   capped at 4), not just a single generic "something's on" dot.
 - **Day timeline** (`DayView.tsx`): tasks with a time render on a positioned time-grid
-  (30-minute slots, `SLOT_PX = 26`) instead of a flat list — `layoutDay()` computes each
+  (15-minute slots, `SLOT_PX = 13` — 52px/hour, chosen so drag/resize can snap to
+  quarter/half/full hours) instead of a flat list — `layoutDay()` computes each
   block's `grid-row` from its start/end time and greedily assigns a `grid-column` so
   overlapping tasks sit side by side (classic interval-graph coloring, one shared column
   count for the whole day rather than per-cluster, which is simpler at the cost of
@@ -195,7 +197,34 @@ a task id that doesn't exist returns `404`.
   above via `.timeline-block.expanded { z-index: 20; overflow: visible; }`, without
   disturbing the grid's row sizing. Tasks missing a time (only possible on data older than
   the mandatory-time requirement) render above the grid in a plain "No time set" list
-  instead. This single-row layout went through a few iterations (stacked badge-over-title,
+  instead.
+- **Drag-to-move / drag-to-resize** (`DayView.tsx#TimelineBlock`): same-day only — there's
+  no cross-day dragging, which would need every day of the week visible at once instead of
+  just the selected one. Both use the Pointer Events API (`onPointerDown` +
+  `setPointerCapture` on the block's own ref, so subsequent move/up events keep targeting
+  it even if the pointer leaves its bounds) rather than separate mouse/touch handlers, and
+  both snap to the 15-minute grid (`SLOT_MINUTES`) so a drag lands on a
+  quarter/half/full-hour boundary. A pointer-down on `.timeline-block-main` starts a
+  *move* (drag anywhere on the block shifts both `startTime` and `endTime` by the same
+  delta, preserving duration); pointer-down on the thin `.timeline-resize-handle` strip at
+  the bottom starts a *resize* (only `endTime` moves, clamped to a 15-minute minimum
+  duration). A `DRAG_THRESHOLD_PX = 4` movement gate distinguishes an actual drag from a
+  tap — below the threshold, `onPointerUp` falls through to the normal tap-to-expand
+  behavior instead of committing a time change; this is also why the checkbox and
+  homework-due controls need their own `onPointerDown` (not just `onClick`)
+  `stopPropagation`, so tapping them doesn't register as the start of a block-level drag.
+  While dragging, the block's row is computed live from local `drag` state (not the
+  server-derived `block` prop) so it visually follows the pointer without waiting on a
+  round trip; on release, `handlers.onSetTaskTime` fires `POST /api/tasks/:id/time` and
+  `Dashboard` optimistically patches `weekOccurrences` so the block resolves to its
+  final position immediately rather than snapping back and forward. The drag is clamped to
+  the grid's current `[startHour, endHour]` range — it does not grow the grid mid-drag to
+  let a task go earlier/later than what's already displayed. Column reassignment for
+  overlaps only happens on the next full `layoutDay()` pass (i.e. after the drop, once
+  fresh data loads) — a block dragged mid-air can visually overlap a neighbor until
+  released. `MIN_BLOCK_MINUTES` was raised from 30 to 45 specifically to leave room for the
+  resize handle at the bottom of even the shortest block, since the extra fixed-height
+  strip didn't fit inside the old minimum without clipping. This single-row layout went through a few iterations (stacked badge-over-title,
   a separate homework row below) before landing here — CSS Grid with explicit columns
   ended up far more predictable than flex + `-webkit-line-clamp` for keeping everything
   reliably on one line.
