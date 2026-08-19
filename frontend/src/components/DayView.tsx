@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Occurrence } from "../api";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -17,6 +17,11 @@ const MIN_BLOCK_MINUTES = 45; // visual minimum height (checkbox/badge/title row
 const DEFAULT_START_HOUR = 6;
 const DEFAULT_END_HOUR = 22;
 const DRAG_THRESHOLD_PX = 4;
+// Touch only: how long to hold before a press turns into a drag, so a normal scroll swipe
+// that starts on a block isn't hijacked. Mouse drags arm immediately (no scroll to conflict with).
+const LONG_PRESS_MS = 2000;
+// Touch only: if the finger moves this much before the long-press fires, it's a scroll, not a hold.
+const LONG_PRESS_CANCEL_PX = 10;
 
 type Handlers = {
   onToggle: (occurrence: Occurrence) => void;
@@ -149,7 +154,10 @@ function HomeworkControls({
 interface DragState {
   mode: "move" | "resize";
   pointerId: number;
+  startX: number;
   startY: number;
+  /** True once ready to interpret movement as a drag: immediately for mouse, after a long-press for touch. */
+  armed: boolean;
   moved: boolean;
   previewStart: number;
   previewEnd: number;
@@ -174,7 +182,14 @@ function TimelineBlock({
   const origStart = toMinutes(occ.startTime!);
   const origEnd = toMinutes(occ.endTime!);
   const blockRef = useRef<HTMLDivElement>(null);
+  const longPressTimer = useRef<number | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current);
+    };
+  }, []);
 
   const previewStart = drag ? drag.previewStart : origStart;
   const previewEnd = drag ? drag.previewEnd : origEnd;
@@ -186,14 +201,53 @@ function TimelineBlock({
     return Math.round(minutes / SLOT_MINUTES) * SLOT_MINUTES;
   }
 
+  function clearPendingTimer() {
+    if (longPressTimer.current !== null) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }
+
+  function armDrag(pointerId: number) {
+    blockRef.current?.setPointerCapture(pointerId);
+    setDrag((d) => (d && d.pointerId === pointerId ? { ...d, armed: true } : d));
+  }
+
   function startDrag(mode: "move" | "resize", e: React.PointerEvent) {
-    blockRef.current?.setPointerCapture(e.pointerId);
-    setDrag({ mode, pointerId: e.pointerId, startY: e.clientY, moved: false, previewStart: origStart, previewEnd: origEnd });
+    const pointerId = e.pointerId;
+    const isTouch = e.pointerType === "touch" || e.pointerType === "pen";
+    setDrag({
+      mode,
+      pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      armed: !isTouch,
+      moved: false,
+      previewStart: origStart,
+      previewEnd: origEnd,
+    });
+    if (isTouch) {
+      longPressTimer.current = window.setTimeout(() => armDrag(pointerId), LONG_PRESS_MS);
+    } else {
+      blockRef.current?.setPointerCapture(pointerId);
+    }
   }
 
   function onPointerMove(e: React.PointerEvent) {
     if (!drag || e.pointerId !== drag.pointerId) return;
     const deltaY = e.clientY - drag.startY;
+
+    if (!drag.armed) {
+      // Still waiting out the long-press. Real movement this early means the finger is
+      // scrolling the page, not holding still to start a drag -- back off and let it scroll.
+      const deltaX = e.clientX - drag.startX;
+      if (Math.hypot(deltaX, deltaY) > LONG_PRESS_CANCEL_PX) {
+        clearPendingTimer();
+        setDrag(null);
+      }
+      return;
+    }
+
     if (!drag.moved && Math.abs(deltaY) < DRAG_THRESHOLD_PX) return;
 
     const deltaMinutes = snap((deltaY / SLOT_PX) * SLOT_MINUTES);
@@ -209,6 +263,7 @@ function TimelineBlock({
 
   function onPointerUp(e: React.PointerEvent) {
     if (!drag || e.pointerId !== drag.pointerId) return;
+    clearPendingTimer();
     const { moved, previewStart: finalStart, previewEnd: finalEnd } = drag;
     setDrag(null);
     if (moved) {
@@ -220,14 +275,20 @@ function TimelineBlock({
     }
   }
 
+  function onPointerCancel(e: React.PointerEvent) {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    clearPendingTimer();
+    setDrag(null);
+  }
+
   return (
     <div
       ref={blockRef}
-      className={`timeline-block cat-border-${occ.category} ${occ.status === "done" ? "done" : ""} ${expanded ? "expanded" : ""} ${drag?.moved ? "dragging" : ""}`}
+      className={`timeline-block cat-border-${occ.category} ${occ.status === "done" ? "done" : ""} ${expanded ? "expanded" : ""} ${drag?.armed && !drag.moved ? "armed" : ""} ${drag?.moved ? "dragging" : ""}`}
       style={{ gridRow: `${startRow} / ${endRow}`, gridColumn: col + 2 }}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      onPointerCancel={onPointerCancel}
     >
       <div className="timeline-block-main" onPointerDown={(e) => startDrag("move", e)}>
         <input

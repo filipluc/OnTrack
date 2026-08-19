@@ -536,14 +536,16 @@ button:disabled {
   cursor: grab;
   flex: 1 1 auto;
   min-height: 0;
-  touch-action: none;
+  /* Allow native vertical scroll to proceed while a touch is still just a pending long-press;
+     once armed, setPointerCapture takes over the gesture regardless of this. */
+  touch-action: pan-y;
 }
 
 .timeline-resize-handle {
   height: 10px;
   flex-shrink: 0;
   cursor: ns-resize;
-  touch-action: none;
+  touch-action: pan-y;
   position: relative;
 }
 
@@ -557,6 +559,10 @@ button:disabled {
   height: 3px;
   border-radius: 999px;
   background: var(--border);
+}
+
+.timeline-block.armed {
+  box-shadow: 0 0 0 2px var(--primary);
 }
 
 .timeline-block.dragging {

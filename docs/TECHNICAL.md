@@ -197,7 +197,10 @@ a task id that doesn't exist returns `404`.
   above via `.timeline-block.expanded { z-index: 20; overflow: visible; }`, without
   disturbing the grid's row sizing. Tasks missing a time (only possible on data older than
   the mandatory-time requirement) render above the grid in a plain "No time set" list
-  instead.
+  instead. This single-row layout went through a few iterations (stacked badge-over-title,
+  a separate homework row below) before landing here — CSS Grid with explicit columns
+  ended up far more predictable than flex + `-webkit-line-clamp` for keeping everything
+  reliably on one line.
 - **Drag-to-move / drag-to-resize** (`DayView.tsx#TimelineBlock`): same-day only — there's
   no cross-day dragging, which would need every day of the week visible at once instead of
   just the selected one. Both use the Pointer Events API (`onPointerDown` +
@@ -224,10 +227,23 @@ a task id that doesn't exist returns `404`.
   fresh data loads) — a block dragged mid-air can visually overlap a neighbor until
   released. `MIN_BLOCK_MINUTES` was raised from 30 to 45 specifically to leave room for the
   resize handle at the bottom of even the shortest block, since the extra fixed-height
-  strip didn't fit inside the old minimum without clipping. This single-row layout went through a few iterations (stacked badge-over-title,
-  a separate homework row below) before landing here — CSS Grid with explicit columns
-  ended up far more predictable than flex + `-webkit-line-clamp` for keeping everything
-  reliably on one line.
+  strip didn't fit inside the old minimum without clipping.
+
+  **Touch: long-press to arm, not immediate.** A bare `touch-action: none` on the block
+  broke ordinary page scrolling — any touch that started on a block (which is most of the
+  screen on a busy day) got hijacked into a drag instead of scrolling, found via real
+  on-device testing. Fixed with a long-press gate, touch/pen only (`e.pointerType`) —
+  mouse still arms immediately, since a mouse drag doesn't compete with a scroll gesture
+  the way touch does. On `pointerdown` from touch, the block does *not* capture the
+  pointer yet; it starts a `LONG_PRESS_MS = 2000` timer and sits in an "unarmed" state
+  while `touch-action: pan-y` (not `none`) lets the browser scroll the page normally if
+  the finger actually moves — `onPointerMove` cancels the pending timer once movement
+  exceeds `LONG_PRESS_CANCEL_PX = 10`, on the read that real movement this early means a
+  scroll swipe, not someone holding still to start a drag. Only once the timer fires does
+  `armDrag()` call `setPointerCapture` and flip `armed: true` (visible as a
+  `.timeline-block.armed` outline), at which point movement is interpreted as a drag the
+  same way it always was. If the finger never moves during the 2s hold and is then
+  lifted, it still falls through to `onToggleExpand()` like an ordinary tap.
 - **Theme:** `ThemeToggle.tsx` toggles a `data-theme` attribute on `<html>` between
   `"light"`/`"dark"`, persisted to `localStorage` under `ontrack_theme`; defaults to
   `prefers-color-scheme` if nothing is stored. `index.html` sets the attribute
