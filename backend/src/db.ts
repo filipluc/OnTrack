@@ -25,6 +25,7 @@ export async function initSchema() {
 
     ALTER TABLE users DROP CONSTRAINT IF EXISTS users_email_key;
     CREATE INDEX IF NOT EXISTS users_email_idx ON users (email);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS homework_check_time TEXT NOT NULL DEFAULT '18:00';
 
     CREATE TABLE IF NOT EXISTS tasks (
       id SERIAL PRIMARY KEY,
@@ -47,6 +48,7 @@ export async function initSchema() {
 
     ALTER TABLE tasks ADD COLUMN IF NOT EXISTS starts_on TEXT;
     ALTER TABLE tasks ADD COLUMN IF NOT EXISTS ends_on TEXT;
+    ALTER TABLE tasks ADD COLUMN IF NOT EXISTS remind_minutes_before INTEGER;
     UPDATE tasks SET starts_on = TO_CHAR(NOW(), 'YYYY-MM-DD'), ends_on = TO_CHAR(NOW() + INTERVAL '3 months', 'YYYY-MM-DD')
       WHERE recurrence != 'none' AND starts_on IS NULL;
 
@@ -74,5 +76,15 @@ export async function initSchema() {
     ALTER TABLE task_completions ADD COLUMN IF NOT EXISTS override_end_time TEXT;
     ALTER TABLE task_completions ADD COLUMN IF NOT EXISTS override_title TEXT;
     ALTER TABLE task_completions ADD COLUMN IF NOT EXISTS override_category TEXT;
+
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      endpoint TEXT NOT NULL UNIQUE,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS push_subscriptions_user_idx ON push_subscriptions (user_id);
   `);
 }

@@ -95,6 +95,8 @@ export interface Occurrence {
   overridden: boolean;
   /** The task's recurrence window end, if recurring — used to warn when it's about to stop generating occurrences. */
   endsOn: string | null;
+  /** Minutes before startTime to send a reminder push, or null for no reminder on this task. */
+  remindMinutesBefore: number | null;
 }
 
 export function getTasks(userId: number, from: string, to: string) {
@@ -110,6 +112,7 @@ export interface NewTask {
   date?: string;
   startTime: string;
   endTime: string;
+  remindMinutesBefore?: number | null;
 }
 
 export function addTask(task: NewTask) {
@@ -129,6 +132,7 @@ export interface TaskDetail {
   date: string | null;
   startTime: string | null;
   endTime: string | null;
+  remindMinutesBefore: number | null;
 }
 
 export function getTask(id: number) {
@@ -143,6 +147,7 @@ export interface TaskEdits {
   date?: string;
   startTime: string;
   endTime: string;
+  remindMinutesBefore?: number | null;
 }
 
 export function updateTask(id: number, task: TaskEdits) {
@@ -214,5 +219,35 @@ export function setTaskNote(id: number, date: string, note: string) {
   return request<{ ok: true }>(`/tasks/${id}/note`, {
     method: "POST",
     body: JSON.stringify({ date, note }),
+  });
+}
+
+export function getPushPublicKey() {
+  return request<{ publicKey: string }>("/push/public-key");
+}
+
+export function subscribePush(subscription: PushSubscriptionJSON) {
+  return request<{ ok: true }>("/push/subscribe", {
+    method: "POST",
+    body: JSON.stringify({ subscription }),
+  });
+}
+
+export function unsubscribePush(endpoint: string) {
+  return request<{ ok: true }>("/push/unsubscribe", {
+    method: "POST",
+    body: JSON.stringify({ endpoint }),
+  });
+}
+
+/** What time of day (HH:MM) to check for still-unfinished homework and send a reminder. */
+export function getNotificationSettings() {
+  return request<{ homeworkCheckTime: string }>("/push/settings");
+}
+
+export function setNotificationSettings(homeworkCheckTime: string) {
+  return request<{ ok: true }>("/push/settings", {
+    method: "PUT",
+    body: JSON.stringify({ homeworkCheckTime }),
   });
 }

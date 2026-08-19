@@ -1,25 +1,11 @@
 import { Router } from "express";
 import { pool } from "../db.js";
 import { requireAuth, type AuthedRequest } from "../auth.js";
+import { type TaskRow, getOccurrences, addDays, addMonths, withinRecurrenceWindow } from "../occurrences.js";
 
 export const tasksRouter = Router();
 
 tasksRouter.use(requireAuth);
-
-interface TaskRow {
-  id: number;
-  owner_id: number;
-  title: string;
-  category: string;
-  recurrence: "none" | "daily" | "weekly";
-  days_of_week: string | null;
-  date: string | null;
-  start_time: string | null;
-  end_time: string | null;
-  created_by: number;
-  starts_on: string | null;
-  ends_on: string | null;
-}
 
 /** How far into the future a recurring task's occurrences are generated before it needs re-adding. */
 const RECURRENCE_MONTHS = 3;
@@ -41,39 +27,8 @@ async function ownerOfTask(taskId: number): Promise<number | undefined> {
   return result.rows[0]?.owner_id;
 }
 
-function datesInRange(from: string, to: string): string[] {
-  const dates: string[] = [];
-  const current = new Date(from + "T00:00:00Z");
-  const end = new Date(to + "T00:00:00Z");
-  while (current <= end) {
-    dates.push(current.toISOString().slice(0, 10));
-    current.setUTCDate(current.getUTCDate() + 1);
-  }
-  return dates;
-}
-
-function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-function addMonths(dateStr: string, months: number): string {
-  const d = new Date(dateStr + "T00:00:00Z");
-  d.setUTCMonth(d.getUTCMonth() + months);
-  return d.toISOString().slice(0, 10);
-}
-
 function today(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-/** True if `date` falls within a recurring task's generation window (irrelevant for one-off tasks). */
-function withinRecurrenceWindow(task: TaskRow, date: string): boolean {
-  if (!task.starts_on) return false;
-  if (date < task.starts_on) return false;
-  if (task.ends_on && date > task.ends_on) return false;
-  return true;
 }
 
 /** The next date (after `fromDate`) this task occurs on, or null if it has no future occurrence. */
@@ -134,67 +89,7 @@ tasksRouter.get("/", async (req: AuthedRequest, res) => {
     return;
   }
 
-  const tasksResult = await pool.query<TaskRow>("SELECT * FROM tasks WHERE owner_id = $1", [userId]);
-  const tasks = tasksResult.rows;
-  const completionsResult = await pool.query<{
-    task_id: number;
-    date: string;
-    status: string;
-    homework_assigned: boolean;
-    homework_due: boolean;
-    homework_done: boolean;
-    note: string | null;
-    override_start_time: string | null;
-    override_end_time: string | null;
-    override_title: string | null;
-    override_category: string | null;
-  }>(
-    `SELECT task_id, date, status, homework_assigned, homework_due, homework_done, note,
-            override_start_time, override_end_time, override_title, override_category
-     FROM task_completions
-     WHERE task_id IN (SELECT id FROM tasks WHERE owner_id = $1) AND date BETWEEN $2 AND $3`,
-    [userId, from, to]
-  );
-  const completionMap = new Map(completionsResult.rows.map((c) => [`${c.task_id}:${c.date}`, c]));
-
-  const dates = datesInRange(from, to);
-  const occurrences = [];
-  for (const date of dates) {
-    const dow = new Date(date + "T00:00:00Z").getUTCDay();
-    for (const task of tasks) {
-      const occurs =
-        (task.recurrence === "none" && task.date === date) ||
-        (task.recurrence === "daily" && withinRecurrenceWindow(task, date)) ||
-        (task.recurrence === "weekly" &&
-          withinRecurrenceWindow(task, date) &&
-          (task.days_of_week ?? "").split(",").map(Number).includes(dow));
-      if (!occurs) continue;
-      const completion = completionMap.get(`${task.id}:${date}`);
-      if (completion?.status === "skipped") continue;
-      occurrences.push({
-        id: task.id,
-        title: completion?.override_title ?? task.title,
-        category: completion?.override_category ?? task.category,
-        recurrence: task.recurrence,
-        startTime: completion?.override_start_time ?? task.start_time,
-        endTime: completion?.override_end_time ?? task.end_time,
-        overridden: Boolean(
-          completion?.override_start_time ||
-            completion?.override_end_time ||
-            completion?.override_title ||
-            completion?.override_category
-        ),
-        date,
-        status: completion?.status ?? "not_done",
-        homeworkAssigned: completion?.homework_assigned ?? false,
-        homeworkDue: completion?.homework_due ?? false,
-        homeworkDone: completion?.homework_done ?? false,
-        note: completion?.note ?? null,
-        endsOn: task.ends_on,
-      });
-    }
-  }
-
+  const occurrences = await getOccurrences(userId, from, to);
   res.json({ occurrences });
 });
 
@@ -222,17 +117,31 @@ tasksRouter.get("/:id", async (req: AuthedRequest, res) => {
     date: task.date,
     startTime: task.start_time,
     endTime: task.end_time,
+    remindMinutesBefore: task.remind_minutes_before,
   });
 });
 
+/** `undefined`/`null` (no reminder) pass through as null; anything else must be a positive integer. */
+function parseRemindMinutesBefore(value: unknown): number | null | undefined {
+  if (value === undefined || value === null) return null;
+  if (typeof value === "number" && Number.isInteger(value) && value > 0) return value;
+  return undefined;
+}
+
 tasksRouter.post("/", async (req: AuthedRequest, res) => {
-  const { ownerId, title, category, recurrence, daysOfWeek, date, startTime, endTime } = req.body ?? {};
+  const { ownerId, title, category, recurrence, daysOfWeek, date, startTime, endTime, remindMinutesBefore } =
+    req.body ?? {};
   if (!ownerId || !title || !category || !recurrence) {
     res.status(400).json({ error: "ownerId, title, category and recurrence are required" });
     return;
   }
   if (!startTime || !endTime) {
     res.status(400).json({ error: "startTime and endTime are required" });
+    return;
+  }
+  const remindMinutes = parseRemindMinutesBefore(remindMinutesBefore);
+  if (remindMinutes === undefined) {
+    res.status(400).json({ error: "remindMinutesBefore must be a positive integer or null" });
     return;
   }
   if (!(await canAccessUser(req, ownerId))) {
@@ -244,8 +153,8 @@ tasksRouter.post("/", async (req: AuthedRequest, res) => {
   const endsOn = startsOn ? addMonths(startsOn, RECURRENCE_MONTHS) : null;
 
   const result = await pool.query<{ id: number }>(
-    `INSERT INTO tasks (owner_id, title, category, recurrence, days_of_week, date, start_time, end_time, created_by, starts_on, ends_on)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+    `INSERT INTO tasks (owner_id, title, category, recurrence, days_of_week, date, start_time, end_time, created_by, starts_on, ends_on, remind_minutes_before)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
     [
       ownerId,
       title,
@@ -258,6 +167,7 @@ tasksRouter.post("/", async (req: AuthedRequest, res) => {
       req.user!.id,
       startsOn,
       endsOn,
+      remindMinutes,
     ]
   );
 
@@ -277,9 +187,14 @@ tasksRouter.put("/:id", async (req: AuthedRequest, res) => {
     return;
   }
 
-  const { title, category, recurrence, daysOfWeek, date, startTime, endTime } = req.body ?? {};
+  const { title, category, recurrence, daysOfWeek, date, startTime, endTime, remindMinutesBefore } = req.body ?? {};
   if (!title || !category || !recurrence || !startTime || !endTime) {
     res.status(400).json({ error: "title, category, recurrence, startTime and endTime are required" });
+    return;
+  }
+  const remindMinutes = parseRemindMinutesBefore(remindMinutesBefore);
+  if (remindMinutes === undefined) {
+    res.status(400).json({ error: "remindMinutesBefore must be a positive integer or null" });
     return;
   }
 
@@ -296,8 +211,8 @@ tasksRouter.put("/:id", async (req: AuthedRequest, res) => {
   }
 
   await pool.query(
-    `UPDATE tasks SET title = $1, category = $2, recurrence = $3, days_of_week = $4, date = $5, start_time = $6, end_time = $7, starts_on = $8, ends_on = $9
-     WHERE id = $10`,
+    `UPDATE tasks SET title = $1, category = $2, recurrence = $3, days_of_week = $4, date = $5, start_time = $6, end_time = $7, starts_on = $8, ends_on = $9, remind_minutes_before = $10
+     WHERE id = $11`,
     [
       title,
       category,
@@ -308,6 +223,7 @@ tasksRouter.put("/:id", async (req: AuthedRequest, res) => {
       endTime ?? null,
       startsOn,
       endsOn,
+      remindMinutes,
       taskId,
     ]
   );

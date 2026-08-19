@@ -48,6 +48,7 @@ render.yaml              Render Blueprint for the backend service
 | password_hash | text | bcrypt |
 | role | text | `'parent'` \| `'child'` |
 | parent_id | int, nullable | FK → users.id; set only on child accounts |
+| homework_check_time | text | `HH:MM`, default `'18:00'` — local time the notification scheduler checks this user's unfinished homework (see Push notifications below) |
 
 **tasks**
 | column | type | notes |
@@ -62,6 +63,7 @@ render.yaml              Render Blueprint for the backend service
 | start_time / end_time | text, nullable | `HH:MM`; nullable in the DB, but **required by the API** (`POST`/`PUT`) — column stays nullable since older rows may predate that requirement |
 | created_by | int | FK → users.id — who added it (parent or the child themself) |
 | starts_on / ends_on | text, nullable | `YYYY-MM-DD`; only set when `recurrence != 'none'` — bounds which dates a recurring task expands into (see below). `null` for one-off tasks, which don't need a window. |
+| remind_minutes_before | int, nullable | Opt-in per task — `null` means no reminder push for it. When set, the notification scheduler sends a push this many minutes before `start_time` (see Push notifications below). Series-level, not per-occurrence: unlike homework/notes, a reminder describes when the whole task wants to be surfaced, not a single date's state. |
 
 **task_completions**
 | column | type | notes |
@@ -79,6 +81,19 @@ render.yaml              Render Blueprint for the backend service
 | override_category | text, nullable | per-occurrence category override, same mechanism |
 | override_start_time | text, nullable | per-occurrence start-time override, same mechanism |
 | override_end_time | text, nullable | per-occurrence end-time override, same mechanism |
+
+**push_subscriptions**
+| column | type | notes |
+|---|---|---|
+| id | serial PK | |
+| user_id | int | FK → users.id, `ON DELETE CASCADE` |
+| endpoint | text, unique | the push service URL for this device/browser, from the Push API subscription |
+| p256dh / auth | text | the subscription's encryption keys, required to send it a push |
+| created_at | timestamptz | |
+
+One row per subscribed device — a user can have several (phone + laptop, etc.). Upserted
+on `endpoint` conflict, since re-subscribing the same browser (e.g. after clearing the
+permission) reuses the same endpoint.
 
 Unique constraint on `(task_id, date)` — one completion row per task per day. Recurring
 tasks are stored once and **expanded on read**: for a given date range, the backend
@@ -141,6 +156,52 @@ same lookup and clears `homework_due`/`homework_done` on that same target. `home
 can only usefully be set on an occurrence where `homework_due` is true — the frontend only
 exposes the control then, though the backend doesn't enforce it.
 
+**Push notifications** (`backend/src/push.ts`, `backend/src/scheduler.ts`,
+`backend/src/routes/push.ts`): standard Web Push — a VAPID key pair
+(`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` env vars, see Environment
+variables) signs pushes sent via the `web-push` npm package, no third-party push service
+account needed. The frontend registers a Service Worker (`frontend/public/sw.js`) and
+subscribes via the Push API; the subscription (endpoint + keys) is posted to
+`POST /api/push/subscribe` and stored in `push_subscriptions`. `sendPushToUser()` sends to
+every subscription a user has and deletes any the push service reports as gone (404/410 —
+uninstalled browser, expired subscription, etc.).
+
+A single `setInterval` in-process scheduler (`startScheduler()`, called from
+`backend/src/index.ts` after schema init, only if VAPID keys are configured) ticks once a
+minute and, for every user with at least one subscription, expands that day's occurrences
+via the same `getOccurrences()` used by `GET /api/tasks` (extracted into
+`backend/src/occurrences.ts` specifically so both call sites share one implementation) and
+checks two independent things:
+- **Reminders**: any not-done, timed occurrence whose task has `remind_minutes_before` set
+  and whose start time is within that many minutes from now gets a push. Opt-in per task
+  (default off) — the ask was explicitly "not all tasks," so most tasks stay silent unless
+  someone turns a reminder on for that one.
+- **Homework due**: once local time passes the user's own `homework_check_time` (default
+  `18:00`, editable via `NotificationsToggle`), if any School occurrence today has
+  `homeworkDue && !homeworkDone`, sends one push listing them. Deliberately left unmarked
+  (so it keeps checking) if nothing is due yet at that time, in case homework gets marked
+  assigned later in the evening — only marked "notified for today" once a push actually
+  goes out, not just once the clock passes the check time.
+
+Both checks de-dupe via in-memory `Set`s keyed by user+task+date (reminders) or user+date
+(homework), reset when the scheduler's local date rolls over. This is intentionally not
+persisted — a backend restart (Render redeploy, etc.) can in rare cases cause one reminder
+to resend, which was judged an acceptable trade-off against pulling in a real job queue for
+a family-scale app.
+
+**Timezone**: task times are plain wall-clock strings with no timezone info, same
+assumption the rest of the app already makes — so the scheduler pins "now" to a fixed
+`Europe/Bucharest` (`localParts()` in `scheduler.ts`, via `Intl.DateTimeFormat`) rather
+than the server's own clock (UTC on Render), otherwise every comparison would be off by
+the offset.
+
+**iOS note**: Safari only allows web push for a site added to the home screen ("Add to
+Home Screen"), not an ordinary open tab — this is an Apple platform restriction, not
+something the app's code controls. `frontend/index.html` carries the
+`apple-mobile-web-app-*` meta tags and `frontend/public/manifest.webmanifest` so that
+install path is available; Android/desktop Chrome and Firefox support push from a normal
+tab with no install step.
+
 ## API reference
 
 All routes except `/api/auth/*` require `Authorization: Bearer <jwt>`.
@@ -154,9 +215,9 @@ All routes except `/api/auth/*` require `Authorization: Bearer <jwt>`.
 | PUT | `/api/children/:id/password` | `{password}` | Parent only, and only for one of their own children (`parent_id` + `role='child'` checked). Resets the child's password — for when they forget it, since there's no self-service "forgot password" flow. |
 | GET | `/api/health` | — | No auth required. Returns `{ok: true}`. Pinged every 10 minutes by `.github/workflows/keep-alive.yml` so the free Render instance doesn't spin down from inactivity. |
 | GET | `/api/tasks` | `?userId=&from=&to=` | Returns `{occurrences}` — expanded per-date task instances in the range, inclusive. |
-| GET | `/api/tasks/:id` | — | Returns the full task definition (not an occurrence) — `{id, ownerId, title, category, recurrence, daysOfWeek, date, startTime, endTime}`. Used to prefill the edit form, since `GET /api/tasks` occurrences don't carry `daysOfWeek`. |
-| POST | `/api/tasks` | `{ownerId, title, category, recurrence, daysOfWeek?, date?, startTime, endTime}` | Creates a task. `startTime`/`endTime` are required (400 without both). |
-| PUT | `/api/tasks/:id` | same fields as POST minus `ownerId` | Full update of a task. `title`, `category`, `recurrence`, `startTime`, `endTime` are all required (400 if any is missing). |
+| GET | `/api/tasks/:id` | — | Returns the full task definition (not an occurrence) — `{id, ownerId, title, category, recurrence, daysOfWeek, date, startTime, endTime, remindMinutesBefore}`. Used to prefill the edit form, since `GET /api/tasks` occurrences don't carry `daysOfWeek`. |
+| POST | `/api/tasks` | `{ownerId, title, category, recurrence, daysOfWeek?, date?, startTime, endTime, remindMinutesBefore?}` | Creates a task. `startTime`/`endTime` are required (400 without both). `remindMinutesBefore` must be a positive integer or `null`/omitted (400 otherwise); `null` means no reminder. |
+| PUT | `/api/tasks/:id` | same fields as POST minus `ownerId` | Full update of a task. `title`, `category`, `recurrence`, `startTime`, `endTime` are all required (400 if any is missing); `remindMinutesBefore` validated the same as POST. |
 | POST | `/api/tasks/:id/time` | `{date, startTime, endTime}` | Time-only update — for drag-to-move / drag-to-resize on the day timeline, which shouldn't need to resend every other field the way `PUT` does. For a recurring task this only retimes the occurrence on `date` (an override), not the whole series; for `recurrence='none'` it updates the task row directly. `startTime`/`endTime` must be `HH:MM` with `startTime < endTime` (400 otherwise). |
 | POST | `/api/tasks/:id/occurrence-edit` | `{date, title, category, startTime, endTime}` | "Edit only this day" — overrides title/category/time on the occurrence on `date` without touching the task row or any other occurrence. Never touches recurrence/daysOfWeek/date (see Data model). All fields required; `category` must be one of the known values (400 otherwise). |
 | POST | `/api/tasks/:id/extend` | — | Pushes a recurring task's `ends_on` another ~3 months out (see Recurrence window). 400 if the task is `recurrence='none'`. Returns `{ok, endsOn}`. |
@@ -165,6 +226,11 @@ All routes except `/api/auth/*` require `Authorization: Bearer <jwt>`.
 | POST | `/api/tasks/:id/homework-assigned` | `{date, assigned}` | Marks (or unmarks) that the class on `date` gave homework. Writes `homework_due = assigned` onto the *next occurrence of the same subject* — found by title/category match across the owner's tasks, which may be a different task id (see Data model). 400 if no upcoming occurrence is found. |
 | POST | `/api/tasks/:id/homework-done` | `{date, done}` | Sets `homework_done` for the occurrence on `date`. |
 | POST | `/api/tasks/:id/note` | `{date, note}` | Sets (or clears, with `""`) the free-text note for the occurrence on `date`. Trimmed server-side; an all-whitespace note stores as `NULL`. |
+| GET | `/api/push/public-key` | — | Returns `{publicKey}` — the VAPID public key, needed by the frontend to call `pushManager.subscribe()`. |
+| POST | `/api/push/subscribe` | `{subscription}` (a `PushSubscriptionJSON`) | Upserts the caller's push subscription, keyed on `endpoint`. |
+| POST | `/api/push/unsubscribe` | `{endpoint}` | Deletes one of the caller's own subscriptions. |
+| GET | `/api/push/settings` | — | Returns `{homeworkCheckTime}` (`HH:MM`) for the caller, default `"18:00"`. |
+| PUT | `/api/push/settings` | `{homeworkCheckTime}` | Sets the caller's homework-check time. Must be `HH:MM` (400 otherwise). |
 
 ### Access control
 
@@ -178,7 +244,9 @@ point:
 Every task route and the children routes call through this (or the equivalent
 `role === 'parent'` check for `/api/children`). A failed check returns `403`, an
 unauthenticated request returns `401` (from `requireAuth` in `backend/src/auth.ts`),
-a task id that doesn't exist returns `404`.
+a task id that doesn't exist returns `404`. The push routes don't need `canAccessUser` at
+all — they only ever read/write the caller's own subscriptions/settings (`req.user!.id`),
+never another user's.
 
 ## Frontend
 
@@ -362,6 +430,18 @@ a task id that doesn't exist returns `404`.
   reuses `setTaskStatus` directly (same as `DayView`), with a rollback-on-failure
   optimistic update rather than a full reload, since a reload here would also need to
   re-apply the "hide done" filter.
+- **Push notifications** (`src/push.ts`, `components/NotificationsToggle.tsx`,
+  `public/sw.js`): `NotificationsToggle` (next to `ThemeToggle` in the dashboard header,
+  hidden entirely if `pushSupported()` is false) drives `enablePush()`/`disablePush()` —
+  `Notification.requestPermission()` → register `sw.js` → `pushManager.subscribe()` with
+  the backend's VAPID public key → `POST /api/push/subscribe`. Once enabled, an inline
+  time input (backed by `GET`/`PUT /api/push/settings`) lets the user set their own
+  `homeworkCheckTime`. `sw.js` itself is a plain static file (not bundled by Vite) with two
+  listeners: `push` shows a notification from the JSON payload, `notificationclick`
+  focuses an existing tab (or opens one) at the payload's `url`. Per-task reminders are
+  opt-in in `TaskForm` (a checkbox + a minutes-before number input, both omitted from the
+  request as `remindMinutesBefore: null` when unchecked) rather than defaulting on, since
+  the ask was explicitly not-every-task.
 - **Notes** (`DayView.tsx#NoteField`, shared between the expanded timeline popover and the
   "No time set" fallback list): a plain per-occurrence textarea, not tied to any one
   category. Keeps its own local `draft` state seeded from `occ.note` and re-synced via a
@@ -381,6 +461,8 @@ a task id that doesn't exist returns `404`.
 | `PORT` | no (defaults 4000) | |
 | `JWT_SECRET` | yes | long random string; Render's Blueprint auto-generates one |
 | `DATABASE_URL` | yes | Postgres connection string, e.g. from Neon (`...?sslmode=require`) |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | no — push notifications silently disable without them (a warning is logged) | generate with `npx web-push generate-vapid-keys`; **not** synced by `render.yaml`, must be set by hand in the Render dashboard for production, same as `DATABASE_URL` |
+| `VAPID_SUBJECT` | no (defaults to a placeholder `mailto:`) | a contact URI (`mailto:` or `https:`) push services may use to reach the app owner about delivery problems — standard part of the Web Push protocol, not shared with users |
 
 **frontend/.env**
 | var | required | notes |
@@ -408,7 +490,10 @@ backend startup (`initSchema()`, idempotent).
   web service with `rootDir: backend`, `npm install && npm run build` as the build
   command, `npm start` to run. `JWT_SECRET` is auto-generated by the Blueprint;
   `DATABASE_URL` must be set manually in the Render dashboard (marked `sync: false` in
-  the Blueprint so it isn't committed anywhere).
+  the Blueprint so it isn't committed anywhere). `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/
+  `VAPID_SUBJECT` aren't in `render.yaml` at all yet — until they're added manually in the
+  dashboard, push notifications stay silently disabled in production (the backend logs a
+  warning and skips starting the scheduler, everything else works normally).
 - **Frontend:** built with `VITE_API_BASE_URL` set to the Render service's URL
   (`npm run build` inside `frontend/`, reading `.env.production` or an env var at build
   time). The static output in `frontend/dist/` is what a static host would serve, and

@@ -48,6 +48,7 @@ don't let it drift out of sync with reality.
 | 2026-08-19 | Added an **Agenda** page (`/agenda`), a plain weekly checklist grouped by day. Started as a request for "what homework do I have this week" but generalized to all tasks once it came up that a broader view was more useful than a homework-only one. No new backend endpoint — one `GET /api/tasks` call for the selected week. Defaults to hiding done items ("Show done too" reveals them), since the point is surfacing what's left, not a full log; a School occurrence with homework due still gets an inline "HW due"/"HW done" tag. |
 | 2026-08-19 | Reworked the homework filter on Agenda into a chip-button row — **All / 📖 Homework / ⚽ Sport** — after a follow-up ask for a Sport filter too. Single-select `FilterMode`, applied on top of (not instead of) the existing done/not-done checkbox. Client-side only, no backend change. |
 | 2026-08-19 | Fixed a reported bug: tapping a day-timeline block to expand it (`TimelineBlock`) sometimes also fired the Delete button inside the detail panel that had just appeared. Root cause: our own `onPointerUp` handler expands the block immediately, but the browser can still fire a compatibility "click" afterward at the same screen coordinates — by then Edit/Delete/Close have rendered there, so the ghost click lands on whichever button is at that spot. Fixed with `e.preventDefault()` on the tap-to-expand path in `onPointerUp` (suppresses the compat click on spec-compliant browsers) plus a ~400ms timestamp guard (`suppressClickUntilRef`, checked via `onClickCapture` on the detail panel) as a fallback for browsers where that isn't enough. |
+| 2026-08-19 | Added **push notifications**: reminders and a daily homework-due check. Web Push (VAPID + `web-push`, `push_subscriptions` table, `frontend/public/sw.js`), no native app needed — with the caveat that iOS Safari only allows it once the site is added to the home screen (Apple restriction). An in-process `setInterval` scheduler (`backend/src/scheduler.ts`) ticks every minute, pinned to `Europe/Bucharest` since task times have no timezone of their own. Two follow-up asks folded in during the same pass: reminders are **opt-in per task** (`tasks.remind_minutes_before`, nullable, off by default — "not all tasks" was explicit), not a blanket setting; the homework-due check time is **user-configurable** (`users.homework_check_time`, default `18:00`) via an inline input next to the notification toggle, not hardcoded. Occurrence-expansion logic was extracted from `routes/tasks.ts` into `backend/src/occurrences.ts` so the scheduler and `GET /api/tasks` share one implementation instead of drifting apart. **Needs a manual step before it works in production**: `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` aren't in `render.yaml` and must be added by hand in the Render dashboard, same as `DATABASE_URL` was — see Status below. |
 
 **Project location:** `C:\Github\OnTrack` — full architecture, data model, API
 reference, and env var docs live in [`docs/TECHNICAL.md`](docs/TECHNICAL.md).
@@ -93,6 +94,11 @@ Still to do — needs manual dashboard steps only the user can do:
    dashboard so it picks up the new service and deploys the frontend.
 5. Re-verify the golden path end-to-end against the deployed backend + frontend, from an
    actual phone.
+6. Set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` as env vars on the
+   `ontrack-api` Render service (Environment tab) — generated locally with
+   `npx web-push generate-vapid-keys` inside `backend/`, currently only in the gitignored
+   local `backend/.env`. Push notifications stay silently disabled in production until
+   this is done.
 
 **Phase 3 — Android packaging: not started.** Depends on Phase 2. Plan: `npx cap init`
 + `npx cap add android` inside `frontend/`, requires Android Studio + SDK (not yet

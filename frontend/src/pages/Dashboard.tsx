@@ -24,6 +24,7 @@ import EditScopeDialog from "../components/EditScopeDialog";
 import EditOccurrenceForm from "../components/EditOccurrenceForm";
 import ResetPasswordDialog from "../components/ResetPasswordDialog";
 import ThemeToggle from "../components/ThemeToggle";
+import NotificationsToggle from "../components/NotificationsToggle";
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -213,6 +214,7 @@ export default function Dashboard() {
         <h1>OnTrack</h1>
         <div className="header-right">
           <ThemeToggle />
+          <NotificationsToggle />
           <span className="signed-in-as">{user!.name}</span>
           <button className="secondary" onClick={logout}>
             Log out

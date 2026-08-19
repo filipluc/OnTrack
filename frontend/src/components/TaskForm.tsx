@@ -44,6 +44,8 @@ export default function TaskForm({
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>([]);
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const [remind, setRemind] = useState(false);
+  const [remindMinutes, setRemindMinutes] = useState(15);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -64,6 +66,8 @@ export default function TaskForm({
         setDaysOfWeek(task.daysOfWeek);
         setStartTime(task.startTime ?? "");
         setEndTime(task.endTime ?? "");
+        setRemind(task.remindMinutesBefore != null);
+        if (task.remindMinutesBefore != null) setRemindMinutes(task.remindMinutesBefore);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Could not load task"))
       .finally(() => setLoading(false));
@@ -117,6 +121,7 @@ export default function TaskForm({
         daysOfWeek: recurrence === "weekly" ? daysOfWeek : undefined,
         startTime,
         endTime,
+        remindMinutesBefore: remind ? remindMinutes : null,
       };
       if (editTaskId !== undefined) {
         await updateTask(editTaskId, fields);
@@ -212,6 +217,25 @@ export default function TaskForm({
                 End time
                 <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
               </label>
+            </div>
+
+            <div className="remind-row">
+              <label className="remind-checkbox">
+                <input type="checkbox" checked={remind} onChange={(e) => setRemind(e.target.checked)} />
+                🔔 Remind me before this
+              </label>
+              {remind && (
+                <label className="remind-minutes">
+                  <input
+                    type="number"
+                    min={1}
+                    max={1440}
+                    value={remindMinutes}
+                    onChange={(e) => setRemindMinutes(Math.max(1, Number(e.target.value) || 1))}
+                  />
+                  minutes before
+                </label>
+              )}
             </div>
           </>
         )}

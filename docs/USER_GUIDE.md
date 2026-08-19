@@ -56,6 +56,9 @@ parent can reset it.
   - **Repeats** — *Just once* (pick a date), *Every day*, or *Certain days each week*
     (pick which weekdays)
   - **Start/end time** — required, and what places the task on the day's time grid
+  - **🔔 Remind me before this** — off by default (most tasks don't need a ping); tick it
+    to get a notification a set number of minutes before it starts, and set how many
+    (defaults to 15). Only works once notifications are turned on — see below.
 - **Mark done:** tap the checkbox on a task's block. For repeating tasks, this only marks
   *that day's* occurrence — a daily task's checkbox resets fresh every morning.
 - **Edit a task:** tap it to open it, then tap **✎**. For a one-off task this just opens
@@ -84,6 +87,20 @@ parent can reset it.
   own note). A small 📝 on a task's block previews that it has a note.
 - **Dark mode:** tap the 🌙 / ☀️ button in the top-right corner to switch. It remembers
   your choice; without one, it follows your device's system setting.
+- **Notifications:** tap the 🔕 button next to dark mode to turn notifications on for
+  this device (your browser will ask for permission) — it becomes 🔔 once enabled, tap
+  again to turn off. Two kinds of push you'll get:
+  - A **reminder** before any task you've ticked "🔔 Remind me before this" on (see Add a
+    task above) — nothing else pings you, so turning on notifications alone doesn't
+    suddenly notify you about everything.
+  - A **homework check** once a day (default **18:00**) if anything is still due and not
+    marked done — change the time in the box that appears next to the bell once
+    notifications are on.
+  Notifications are per-device, not per-account — turn them on separately on your phone
+  and your child's. **On iPhone**, Safari only allows this for a site added to the home
+  screen (Share → Add to Home Screen) — opened as an ordinary browser tab, the 🔔 button
+  won't work; this is an Apple restriction, not something the app can work around.
+  Android and desktop browsers work directly, no install needed.
 - **Repeating task ending soon:** a repeating task only keeps generating new days for
   about 3 months at a time (not forever) — when one is within 2 weeks of running out, a
   banner appears above your schedule with an **Extend** button (pushes it another 3
