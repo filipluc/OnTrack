@@ -252,6 +252,12 @@ function TimelineBlock({
       return;
     }
 
+    // Armed: this is our drag now, not a page scroll. The touch was stationary through the
+    // whole hold, so the browser hasn't committed to a native pan for it yet -- suppress that
+    // default here (still on the first real movement after arming) so it doesn't scroll the
+    // page underneath the drag.
+    e.preventDefault();
+
     if (!drag.moved && Math.abs(deltaY) < DRAG_THRESHOLD_PX) return;
 
     const deltaMinutes = snap((deltaY / SLOT_PX) * SLOT_MINUTES);

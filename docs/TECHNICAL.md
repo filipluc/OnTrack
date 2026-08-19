@@ -251,8 +251,16 @@ a task id that doesn't exist returns `404`.
   still to start a drag. Only once the timer fires does `armDrag()` flip `armed: true`
   (visible as a `.timeline-block.armed` outline; capture is already held by then), at
   which point movement is interpreted as a drag the
-  same way it always was. If the finger never moves during the 2s hold and is then
-  lifted, it still falls through to `onToggleExpand()` like an ordinary tap.
+  same way it always was — except a third on-device round found the outline arming but
+  the block not actually following the finger: `touch-action: pan-y` was still in effect
+  and, since the touch had been stationary through the whole hold, the browser hadn't
+  committed to a scroll interpretation for it yet, so once real movement started it was
+  free to treat it as a native pan and compete with the JS-driven drag. Fixed by calling
+  `e.preventDefault()` on the first armed `onPointerMove`, before any threshold/movement
+  math — cancelable on Pointer Events (unlike `touchmove`, not forced passive by default),
+  so this reliably suppresses the browser's default action for the rest of that touch. If
+  the finger never moves during the 2s hold and is then lifted, it still falls through to
+  `onToggleExpand()` like an ordinary tap.
 - **Theme:** `ThemeToggle.tsx` toggles a `data-theme` attribute on `<html>` between
   `"light"`/`"dark"`, persisted to `localStorage` under `ontrack_theme`; defaults to
   `prefers-color-scheme` if nothing is stored. `index.html` sets the attribute
