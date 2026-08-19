@@ -1055,8 +1055,9 @@ a.secondary {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  font-weight: 600;
-  font-size: 0.9rem;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text);
 }
 
 .modal input,
@@ -1066,13 +1067,37 @@ a.secondary {
   border: 1px solid var(--border);
 }
 
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.field-label {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text);
+}
+
 .time-row {
   display: flex;
   gap: 0.8rem;
 }
 
-.time-row label {
+.time-row label,
+.time-row .time-select-field {
   flex: 1;
+}
+
+.time-select-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.time-select-row select {
+  flex: 1;
+  min-width: 0;
 }
 
 .remind-row {

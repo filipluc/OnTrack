@@ -48,14 +48,17 @@ parent can reset it.
   different day isn't supported yet. For a repeating task, dragging always changes just
   that one day — the rest of the schedule is untouched, so moving Monday's practice
   doesn't retime every other Monday.
-- **Add a task:** tap **+ Add task**, fill in:
+- **Add a task:** tap **+ Add task**, fill in (category, title, and repeats are all tap a
+  button, not a dropdown menu — every option is right there):
   - **Category** — School, Study, Sport, Routine, Leisure, or Other (shows as a colored tag)
-  - **Title** — pick from a fixed list for that category (e.g. School → Mate, Romana,
-    Istorie, Geografie, Sport), or choose **Other…** for a free-text title. Other has no
+  - **Title** — tap one from a fixed list for that category (e.g. School → Mate, Romana,
+    Istorie, Geografie, Sport), or tap **Other…** for a free-text title. Other has no
     fixed list and always asks for a title directly.
   - **Repeats** — *Just once* (pick a date), *Every day*, or *Certain days each week*
     (pick which weekdays)
-  - **Start/end time** — required, and what places the task on the day's time grid
+  - **Start/end time** — required, and what places the task on the day's time grid. Pick
+    the hour and minute from two small dropdowns (minutes in quarter-hour steps, matching
+    how the calendar itself snaps).
   - **🔔 Remind me before this** — off by default (most tasks don't need a ping); tick it
     to get a notification a set number of minutes before it starts, and set how many
     (defaults to 60). Only works once notifications are turned on — see below.

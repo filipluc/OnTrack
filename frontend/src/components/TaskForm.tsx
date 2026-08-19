@@ -2,26 +2,13 @@ import { useEffect, useState, type FormEvent } from "react";
 import { addTask, getTask, updateTask, type Category, type Recurrence } from "../api";
 import { WEEKDAY_LABELS } from "../date";
 import { useEscapeKey } from "../useEscapeKey";
+import { CategoryPicker, TitlePicker, TimeSelect, FIXED_TITLES, CUSTOM_OPTION } from "./TaskFormFields";
 
-export const CATEGORIES: { value: Category; label: string }[] = [
-  { value: "school", label: "School" },
-  { value: "study", label: "Study" },
-  { value: "sport", label: "Sport" },
-  { value: "routine", label: "Routine" },
-  { value: "leisure", label: "Leisure" },
-  { value: "other", label: "Other" },
+const RECURRENCE_OPTIONS: { value: Recurrence; label: string }[] = [
+  { value: "none", label: "Just once" },
+  { value: "daily", label: "Every day" },
+  { value: "weekly", label: "Certain days each week" },
 ];
-
-export const FIXED_TITLES: Record<Category, string[]> = {
-  school: ["Mate", "Romana", "Istorie", "Geografie", "Sport"],
-  sport: ["Antrenament fotbal", "Antrenament individual", "Antrenament Coerver", "Sport complementar", "Meci fotbal", "Turneu"],
-  routine: ["Spalat pe dinti", "Pregatit ghiozdan"],
-  leisure: ["TV", "PS"],
-  study: ["Teme scoala", "Extra Mate/Romana", "Extra Engleza", "Duolingo", "Citit"],
-  other: [],
-};
-
-export const CUSTOM_OPTION = "__custom__";
 
 export default function TaskForm({
   ownerId,
@@ -144,46 +131,31 @@ export default function TaskForm({
           <p className="empty-state">Loading…</p>
         ) : (
           <>
-            <label>
-              Category
-              <select value={category} onChange={(e) => handleCategoryChange(e.target.value as Category)} autoFocus>
-                {CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
+            <CategoryPicker value={category} onChange={handleCategoryChange} />
+
+            <TitlePicker
+              category={category}
+              titleChoice={titleChoice}
+              onTitleChoiceChange={setTitleChoice}
+              customTitle={customTitle}
+              onCustomTitleChange={setCustomTitle}
+            />
+
+            <div className="field">
+              <span className="field-label">Repeats</span>
+              <div className="day-picker">
+                {RECURRENCE_OPTIONS.map((r) => (
+                  <button
+                    key={r.value}
+                    type="button"
+                    className={`day-chip ${recurrence === r.value ? "selected" : ""}`}
+                    onClick={() => setRecurrence(r.value)}
+                  >
+                    {r.label}
+                  </button>
                 ))}
-              </select>
-            </label>
-
-            {fixedTitles.length > 0 && (
-              <label>
-                Title
-                <select value={titleChoice} onChange={(e) => setTitleChoice(e.target.value)}>
-                  {fixedTitles.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                  <option value={CUSTOM_OPTION}>Other…</option>
-                </select>
-              </label>
-            )}
-
-            {isCustom && (
-              <label>
-                {fixedTitles.length > 0 ? "Custom title" : "Title"}
-                <input type="text" value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} required />
-              </label>
-            )}
-
-            <label>
-              Repeats
-              <select value={recurrence} onChange={(e) => setRecurrence(e.target.value as Recurrence)}>
-                <option value="none">Just once</option>
-                <option value="daily">Every day</option>
-                <option value="weekly">Certain days each week</option>
-              </select>
-            </label>
+              </div>
+            </div>
 
             {recurrence === "none" && (
               <label>
@@ -208,14 +180,8 @@ export default function TaskForm({
             )}
 
             <div className="time-row">
-              <label>
-                Start time
-                <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} required />
-              </label>
-              <label>
-                End time
-                <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
-              </label>
+              <TimeSelect label="Start time" value={startTime} onChange={setStartTime} />
+              <TimeSelect label="End time" value={endTime} onChange={setEndTime} />
             </div>
 
             <div className="remind-row">

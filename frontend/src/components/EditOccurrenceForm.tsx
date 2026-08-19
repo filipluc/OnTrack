@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { updateOccurrence, type Category, type Occurrence } from "../api";
-import { CATEGORIES, CUSTOM_OPTION, FIXED_TITLES } from "./TaskForm";
+import { CategoryPicker, TitlePicker, TimeSelect, CUSTOM_OPTION, FIXED_TITLES } from "./TaskFormFields";
 import { useEscapeKey } from "../useEscapeKey";
 
 /** "Edit only this day" — title/category/time for a single occurrence, leaving the rest of the recurring series alone. */
@@ -66,47 +66,19 @@ export default function EditOccurrenceForm({
         <p className="subtitle">Other occurrences of this task aren't affected.</p>
         {error && <p className="error">{error}</p>}
 
-        <label>
-          Category
-          <select value={category} onChange={(e) => handleCategoryChange(e.target.value as Category)} autoFocus>
-            {CATEGORIES.map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <CategoryPicker value={category} onChange={handleCategoryChange} />
 
-        {fixedTitles.length > 0 && (
-          <label>
-            Title
-            <select value={titleChoice} onChange={(e) => setTitleChoice(e.target.value)}>
-              {fixedTitles.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-              <option value={CUSTOM_OPTION}>Other…</option>
-            </select>
-          </label>
-        )}
-
-        {isCustom && (
-          <label>
-            {fixedTitles.length > 0 ? "Custom title" : "Title"}
-            <input type="text" value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} required />
-          </label>
-        )}
+        <TitlePicker
+          category={category}
+          titleChoice={titleChoice}
+          onTitleChoiceChange={setTitleChoice}
+          customTitle={customTitle}
+          onCustomTitleChange={setCustomTitle}
+        />
 
         <div className="time-row">
-          <label>
-            Start time
-            <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} required />
-          </label>
-          <label>
-            End time
-            <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
-          </label>
+          <TimeSelect label="Start time" value={startTime} onChange={setStartTime} />
+          <TimeSelect label="End time" value={endTime} onChange={setEndTime} />
         </div>
 
         <div className="modal-actions">

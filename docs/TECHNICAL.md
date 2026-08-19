@@ -426,20 +426,27 @@ never another user's.
 - **Edit flow, same split:** `Dashboard#handleEdit` sends a one-off task straight to
   `TaskForm` (`editTaskId`, unchanged — full `PUT`, there's no ambiguity with a single
   occurrence). A recurring task instead opens `EditScopeDialog`: "All occurrences" also
-  opens `TaskForm`; "Only this day" opens `EditOccurrenceForm` (category, title —
-  reusing `TaskForm`'s exported `CATEGORIES`/`FIXED_TITLES`/`CUSTOM_OPTION` rather than
-  duplicating that list — plus start/end time, no recurrence/date fields since those
-  aren't per-occurrence concepts) which submits via `updateOccurrence()` →
-  `POST /:id/occurrence-edit`. Drag/resize on the timeline is *always* "only this day"
-  implicitly — no dialog, since a drag is already a single, specific gesture on a single
-  block. An overridden occurrence gets a small ✎ next to its title (compact block) and a
-  note in the expanded popover, both gated on `occ.overridden`.
-- **Add-task titles** (`TaskForm.tsx#FIXED_TITLES`): there's no free-text title field by
-  default — picking a category picks a fixed dropdown of that category's typical titles
-  (e.g. School → Mate/Romana/Istorie/Geografie/Sport), with a trailing "Other…" entry that
-  reveals a free-text input instead. `category: 'other'` has no fixed list (`FIXED_TITLES.other
-  = []`) and goes straight to free text. The list is a frontend-only constant, not
-  server-enforced — the backend accepts any non-empty title string.
+  opens `TaskForm`; "Only this day" opens `EditOccurrenceForm` (category, title, start/end
+  time, no recurrence/date fields since those aren't per-occurrence concepts) which
+  submits via `updateOccurrence()` → `POST /:id/occurrence-edit`. Drag/resize on the
+  timeline is *always* "only this day" implicitly — no dialog, since a drag is already a
+  single, specific gesture on a single block. An overridden occurrence gets a small ✎ next
+  to its title (compact block) and a note in the expanded popover, both gated on
+  `occ.overridden`.
+- **Task form fields** (`components/TaskFormFields.tsx`, shared by `TaskForm` and
+  `EditOccurrenceForm` rather than duplicated): category, title, and (in `TaskForm` only)
+  "Repeats" are tappable button groups (reusing the `.day-chip` styling already used for
+  the weekly day picker) instead of `<select>` dropdowns — every option is visible and one
+  tap away, no menu to open, easier to hit on a phone. `CategoryPicker` and `TitlePicker`
+  are the reusable pieces; `TitlePicker` picks from `FIXED_TITLES[category]` (e.g. School →
+  Mate/Romana/Istorie/Geografie/Sport) with a trailing "Other…" chip that reveals a
+  free-text input instead — `category: 'other'` has no fixed list (`FIXED_TITLES.other =
+  []`) and goes straight to free text. The list is a frontend-only constant, not
+  server-enforced — the backend accepts any non-empty title string. `TimeSelect` replaces
+  `<input type="time">` with two plain hour/minute `<select>`s (minutes in 15-minute steps,
+  matching the day timeline's own snap granularity) — the native time picker's 12h-vs-24h
+  rendering depends on the device's own locale and was unusable on at least one phone (same
+  fix already applied to `NotificationsToggle`'s homework-check-time picker).
 - **Reports** (`pages/Reports.tsx`): no new backend endpoint — reuses `GET /api/tasks`
   for whatever `[from, to]` the period selector resolves to (Day/Week/Month/Year each
   compute a range around a `refDate`, with `‹`/`›` shifting it by that period's span;
