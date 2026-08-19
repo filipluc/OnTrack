@@ -45,7 +45,9 @@ parent can reset it.
   for 2 seconds** first — the block outlines in blue once it's ready — then drag; this is
   so a normal scroll swipe passing over a task doesn't accidentally move it. Both snap to
   the nearest quarter hour. This only moves a task within the same day — dragging it to a
-  different day isn't supported yet.
+  different day isn't supported yet. For a repeating task, dragging always changes just
+  that one day — the rest of the schedule is untouched, so moving Monday's practice
+  doesn't retime every other Monday.
 - **Add a task:** tap **+ Add task**, fill in:
   - **Category** — School, Study, Sport, Routine, Leisure, or Other (shows as a colored tag)
   - **Title** — pick from a fixed list for that category (e.g. School → Mate, Romana,
@@ -56,9 +58,13 @@ parent can reset it.
   - **Start/end time** — required, and what places the task on the day's time grid
 - **Mark done:** tap the checkbox on a task's block. For repeating tasks, this only marks
   *that day's* occurrence — a daily task's checkbox resets fresh every morning.
-- **Edit a task:** tap it to open it, then tap **✎**, to change any of the above
-  (category, title, repeats, time). Editing applies to every occurrence of that task —
-  there's no way to change just one instance of a repeating task.
+- **Edit a task:** tap it to open it, then tap **✎**. For a one-off task this just opens
+  the edit form. For a repeating task, you're asked first whether the change applies
+  **only this day** (category, title, and time for just that one occurrence — repeats
+  itself can't change, since that describes the whole series) or **all occurrences**
+  (the full edit form, same as before). An occurrence edited just for one day shows a
+  small ✎ next to its title as a reminder that it's different from the rest of the
+  series.
 - **Delete a task:** tap it to open it, then tap **✕ Delete**. For a repeating task,
   you're asked whether to delete **only this day** (skips just that one occurrence, the
   rest of the schedule stays) or **all occurrences** (removes the whole repeating task).
@@ -78,11 +84,20 @@ parent can reset it.
   own note). A small 📝 on a task's block previews that it has a note.
 - **Dark mode:** tap the 🌙 / ☀️ button in the top-right corner to switch. It remembers
   your choice; without one, it follows your device's system setting.
+- **Repeating task ending soon:** a repeating task only keeps generating new days for
+  about 3 months at a time (not forever) — when one is within 2 weeks of running out, a
+  banner appears above your schedule with an **Extend** button (pushes it another 3
+  months) or **Dismiss** (hides the banner without changing anything, if you're planning
+  to let it lapse on purpose).
 
 ## Reports
 
 Tap **Reports** in the top-right of your schedule to see totals instead of a calendar.
 
+- **Streaks:** at the top, a 🔥 card lists any repeating task with a current streak of
+  done-in-a-row — e.g. "5× in a row — Spalat pe dinti". This isn't affected by whichever
+  period you have selected below it; it's always "as of today". Today not being checked
+  off yet doesn't break yesterday's streak — there's still time in the day.
 - **Pick who:** same "My schedule" / child tabs as the main view.
 - **Pick a period:** **Day**, **Week**, **Month**, or **Year** — use the "‹" / "›" arrows
   to move to the previous or next one. Or pick **Custom** for any specific date range.

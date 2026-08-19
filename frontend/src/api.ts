@@ -91,6 +91,10 @@ export interface Occurrence {
   homeworkDone: boolean;
   /** Free-text note on this occurrence (e.g. what was covered at that day's training). */
   note: string | null;
+  /** True if title/category/time were overridden for just this occurrence, rather than inherited from the task. */
+  overridden: boolean;
+  /** The task's recurrence window end, if recurring — used to warn when it's about to stop generating occurrences. */
+  endsOn: string | null;
 }
 
 export function getTasks(userId: number, from: string, to: string) {
@@ -148,12 +152,32 @@ export function updateTask(id: number, task: TaskEdits) {
   });
 }
 
-/** Lightweight time-only update, for drag-to-move / drag-to-resize on the day timeline. */
-export function setTaskTime(id: number, startTime: string, endTime: string) {
+/** Lightweight time-only update, for drag-to-move / drag-to-resize on the day timeline. For a recurring task this only retimes the dragged occurrence. */
+export function setTaskTime(id: number, date: string, startTime: string, endTime: string) {
   return request<{ ok: true }>(`/tasks/${id}/time`, {
     method: "POST",
-    body: JSON.stringify({ startTime, endTime }),
+    body: JSON.stringify({ date, startTime, endTime }),
   });
+}
+
+export interface OccurrenceEdits {
+  title: string;
+  category: Category;
+  startTime: string;
+  endTime: string;
+}
+
+/** "Edit only this day": overrides title/category/time on a single occurrence, leaving the rest of a recurring series untouched. */
+export function updateOccurrence(id: number, date: string, edits: OccurrenceEdits) {
+  return request<{ ok: true }>(`/tasks/${id}/occurrence-edit`, {
+    method: "POST",
+    body: JSON.stringify({ date, ...edits }),
+  });
+}
+
+/** Pushes a recurring task's window another ~3 months out so it keeps generating occurrences. */
+export function extendTask(id: number) {
+  return request<{ ok: true; endsOn: string }>(`/tasks/${id}/extend`, { method: "POST" });
 }
 
 /** Pass `date` to delete just that occurrence of a recurring task; omit it to delete the whole task. */

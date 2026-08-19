@@ -70,5 +70,9 @@ export async function initSchema() {
     ALTER TABLE task_completions ADD COLUMN IF NOT EXISTS homework_due BOOLEAN NOT NULL DEFAULT false;
     ALTER TABLE task_completions ADD COLUMN IF NOT EXISTS homework_done BOOLEAN NOT NULL DEFAULT false;
     ALTER TABLE task_completions ADD COLUMN IF NOT EXISTS note TEXT;
+    ALTER TABLE task_completions ADD COLUMN IF NOT EXISTS override_start_time TEXT;
+    ALTER TABLE task_completions ADD COLUMN IF NOT EXISTS override_end_time TEXT;
+    ALTER TABLE task_completions ADD COLUMN IF NOT EXISTS override_title TEXT;
+    ALTER TABLE task_completions ADD COLUMN IF NOT EXISTS override_category TEXT;
   `);
 }

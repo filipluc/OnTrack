@@ -278,6 +278,34 @@ a.secondary {
   margin-bottom: 1rem;
 }
 
+.expiring-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.expiring-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: var(--cat-routine-bg);
+  color: var(--cat-routine-text);
+  border-radius: var(--radius);
+  padding: 0.8rem 1rem;
+  font-size: 0.85rem;
+}
+
+.expiring-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.expiring-actions .secondary {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+}
+
 .chip {
   border: 1px solid var(--border);
   background: var(--card);
@@ -636,6 +664,20 @@ a.secondary {
   font-size: 0.65rem;
   margin-left: 4px;
   vertical-align: middle;
+}
+
+.override-indicator {
+  font-size: 0.6rem;
+  margin-left: 4px;
+  vertical-align: middle;
+  color: var(--muted);
+}
+
+.override-note {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-style: italic;
+  margin: 0;
 }
 
 .note-field {
@@ -999,6 +1041,45 @@ a.secondary {
   gap: 0.5rem;
   flex-wrap: wrap;
   margin-bottom: 1rem;
+}
+
+.streaks-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.streaks-heading {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+}
+
+.streaks-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.streaks-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.9rem;
+}
+
+.streaks-title {
+  flex: 1;
+}
+
+.streaks-count {
+  font-weight: 700;
+  color: var(--primary);
+  white-space: nowrap;
 }
 
 .custom-range {

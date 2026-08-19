@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth";
 import {
@@ -10,15 +10,18 @@ import {
   setHomeworkDone,
   setTaskTime,
   setTaskNote,
+  extendTask,
   type Child,
   type Occurrence,
 } from "../api";
-import { addDays, formatDisplay, getWeekDates, toISODate } from "../date";
+import { addDays, formatDisplay, formatShortDate, getWeekDates, toISODate } from "../date";
 import DayView from "../components/DayView";
 import WeekStrip from "../components/WeekStrip";
 import TaskForm from "../components/TaskForm";
 import AddChildForm from "../components/AddChildForm";
 import DeleteTaskDialog from "../components/DeleteTaskDialog";
+import EditScopeDialog from "../components/EditScopeDialog";
+import EditOccurrenceForm from "../components/EditOccurrenceForm";
 import ResetPasswordDialog from "../components/ResetPasswordDialog";
 import ThemeToggle from "../components/ThemeToggle";
 
@@ -33,9 +36,12 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [showAddTask, setShowAddTask] = useState(false);
   const [editTaskId, setEditTaskId] = useState<number | null>(null);
+  const [editScopeTarget, setEditScopeTarget] = useState<Occurrence | null>(null);
+  const [editOccurrenceTarget, setEditOccurrenceTarget] = useState<Occurrence | null>(null);
   const [showAddChild, setShowAddChild] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Occurrence | null>(null);
   const [resetPasswordTarget, setResetPasswordTarget] = useState<Child | null>(null);
+  const [dismissedExpiring, setDismissedExpiring] = useState<Set<number>>(new Set());
 
   const loadChildren = useCallback(async () => {
     if (user!.role !== "parent") return;
@@ -63,6 +69,32 @@ export default function Dashboard() {
   const dayOccurrences = weekOccurrences.filter((o) => o.date === date);
   const categoriesForDate = (d: string) =>
     Array.from(new Set(weekOccurrences.filter((o) => o.date === d).map((o) => o.category)));
+
+  // Recurring tasks stop generating occurrences past their window (see PROJECT.md) --
+  // surface a heads-up while one is within 14 days of that, from whatever's in the loaded week.
+  const expiringSoon = useMemo(() => {
+    const todayStr = toISODate(new Date());
+    const cutoff = addDays(todayStr, 14);
+    const seen = new Set<number>();
+    const result: { id: number; title: string; endsOn: string }[] = [];
+    for (const occ of weekOccurrences) {
+      if (occ.recurrence === "none" || !occ.endsOn || seen.has(occ.id) || dismissedExpiring.has(occ.id)) continue;
+      if (occ.endsOn >= todayStr && occ.endsOn <= cutoff) {
+        seen.add(occ.id);
+        result.push({ id: occ.id, title: occ.title, endsOn: occ.endsOn });
+      }
+    }
+    return result;
+  }, [weekOccurrences, dismissedExpiring]);
+
+  async function handleExtend(taskId: number) {
+    try {
+      await extendTask(taskId);
+      loadTasks();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not extend task");
+    }
+  }
 
   useEffect(() => {
     loadChildren();
@@ -119,7 +151,7 @@ export default function Dashboard() {
       prev.map((o) => (o.id === occ.id && o.date === occ.date ? { ...o, startTime, endTime } : o))
     );
     try {
-      await setTaskTime(occ.id, startTime, endTime);
+      await setTaskTime(occ.id, occ.date, startTime, endTime);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update task time");
       loadTasks();
@@ -140,7 +172,11 @@ export default function Dashboard() {
   }
 
   function handleEdit(occ: Occurrence) {
-    setEditTaskId(occ.id);
+    if (occ.recurrence === "none") {
+      setEditTaskId(occ.id);
+    } else {
+      setEditScopeTarget(occ);
+    }
   }
 
   function handleDelete(occ: Occurrence) {
@@ -219,6 +255,30 @@ export default function Dashboard() {
         </div>
       )}
 
+      {expiringSoon.length > 0 && (
+        <div className="expiring-banner">
+          {expiringSoon.map((t) => (
+            <div key={t.id} className="expiring-row">
+              <span>
+                “{t.title}” repeats until {formatShortDate(t.endsOn)} — extend it so it keeps showing up?
+              </span>
+              <div className="expiring-actions">
+                <button type="button" className="secondary" onClick={() => handleExtend(t.id)}>
+                  Extend
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => setDismissedExpiring((prev) => new Set(prev).add(t.id))}
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <WeekStrip
         selectedDate={date}
         onSelect={setDate}
@@ -272,6 +332,34 @@ export default function Dashboard() {
           onCancel={() => setEditTaskId(null)}
           onDone={() => {
             setEditTaskId(null);
+            loadTasks();
+          }}
+        />
+      )}
+
+      {editScopeTarget && (
+        <EditScopeDialog
+          occurrence={editScopeTarget}
+          onCancel={() => setEditScopeTarget(null)}
+          onEditOne={() => {
+            const occ = editScopeTarget;
+            setEditScopeTarget(null);
+            setEditOccurrenceTarget(occ);
+          }}
+          onEditAll={() => {
+            const occ = editScopeTarget;
+            setEditScopeTarget(null);
+            setEditTaskId(occ.id);
+          }}
+        />
+      )}
+
+      {editOccurrenceTarget && (
+        <EditOccurrenceForm
+          occurrence={editOccurrenceTarget}
+          onCancel={() => setEditOccurrenceTarget(null)}
+          onDone={() => {
+            setEditOccurrenceTarget(null);
             loadTasks();
           }}
         />

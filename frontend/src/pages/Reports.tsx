@@ -134,6 +134,42 @@ function aggregate(occurrences: Occurrence[]): { categories: CategoryAgg[]; unti
   return { categories, untimedCount };
 }
 
+interface StreakInfo {
+  id: number;
+  title: string;
+  category: Category;
+  streak: number;
+}
+
+/** Consecutive completed occurrences of a repeating task, most recent first. Today doesn't break a streak just because it isn't done yet -- there's still time. */
+function computeStreaks(occurrences: Occurrence[], todayStr: string): StreakInfo[] {
+  const byTask = new Map<number, Occurrence[]>();
+  for (const occ of occurrences) {
+    if (occ.recurrence === "none") continue;
+    if (!byTask.has(occ.id)) byTask.set(occ.id, []);
+    byTask.get(occ.id)!.push(occ);
+  }
+
+  const result: StreakInfo[] = [];
+  for (const [id, occs] of byTask) {
+    const sorted = [...occs].sort((a, b) => b.date.localeCompare(a.date));
+    let streak = 0;
+    for (const occ of sorted) {
+      if (occ.date === todayStr && occ.status !== "done") continue;
+      if (occ.status === "done") {
+        streak++;
+      } else {
+        break;
+      }
+    }
+    if (streak > 0) {
+      result.push({ id, title: occs[0].title, category: occs[0].category, streak });
+    }
+  }
+  result.sort((a, b) => b.streak - a.streak);
+  return result;
+}
+
 export default function Reports() {
   const { user } = useAuth();
   const [children, setChildren] = useState<Child[]>([]);
@@ -146,6 +182,7 @@ export default function Reports() {
   const [occurrences, setOccurrences] = useState<Occurrence[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [streakOccurrences, setStreakOccurrences] = useState<Occurrence[]>([]);
 
   const { from, to, label } = getRange(periodType, refDate, customFrom, customTo);
 
@@ -153,6 +190,16 @@ export default function Reports() {
     if (user!.role !== "parent") return;
     getChildren().then(({ children }) => setChildren(children));
   }, [user]);
+
+  useEffect(() => {
+    const todayStr = toISODate(new Date());
+    const streakFrom = addDays(todayStr, -100);
+    getTasks(viewedId, streakFrom, todayStr)
+      .then(({ occurrences }) => setStreakOccurrences(occurrences))
+      .catch(() => {});
+  }, [viewedId]);
+
+  const streaks = useMemo(() => computeStreaks(streakOccurrences, toISODate(new Date())), [streakOccurrences]);
 
   useEffect(() => {
     if (from > to) return;
@@ -203,6 +250,21 @@ export default function Reports() {
               {child.name}
             </button>
           ))}
+        </div>
+      )}
+
+      {streaks.length > 0 && (
+        <div className="streaks-card">
+          <h2 className="streaks-heading">🔥 Streaks</h2>
+          <ul className="streaks-list">
+            {streaks.map((s) => (
+              <li key={s.id} className="streaks-row">
+                <span className={`category-badge cat-${s.category}`}>{CATEGORY_LABELS[s.category]}</span>
+                <span className="streaks-title">{s.title}</span>
+                <span className="streaks-count">{s.streak}× in a row</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

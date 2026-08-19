@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { addTask, getTask, updateTask, type Category, type Recurrence } from "../api";
 import { WEEKDAY_LABELS } from "../date";
 
-const CATEGORIES: { value: Category; label: string }[] = [
+export const CATEGORIES: { value: Category; label: string }[] = [
   { value: "school", label: "School" },
   { value: "study", label: "Study" },
   { value: "sport", label: "Sport" },
@@ -11,7 +11,7 @@ const CATEGORIES: { value: Category; label: string }[] = [
   { value: "other", label: "Other" },
 ];
 
-const FIXED_TITLES: Record<Category, string[]> = {
+export const FIXED_TITLES: Record<Category, string[]> = {
   school: ["Mate", "Romana", "Istorie", "Geografie", "Sport"],
   sport: ["Antrenament fotbal", "Antrenament individual", "Antrenament Coerver", "Sport complementar", "Meci fotbal", "Turneu"],
   routine: ["Spalat pe dinti", "Pregatit ghiozdan"],
@@ -20,7 +20,7 @@ const FIXED_TITLES: Record<Category, string[]> = {
   other: [],
 };
 
-const CUSTOM_OPTION = "__custom__";
+export const CUSTOM_OPTION = "__custom__";
 
 export default function TaskForm({
   ownerId,

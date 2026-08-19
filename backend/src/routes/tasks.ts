@@ -144,8 +144,14 @@ tasksRouter.get("/", async (req: AuthedRequest, res) => {
     homework_due: boolean;
     homework_done: boolean;
     note: string | null;
+    override_start_time: string | null;
+    override_end_time: string | null;
+    override_title: string | null;
+    override_category: string | null;
   }>(
-    `SELECT task_id, date, status, homework_assigned, homework_due, homework_done, note FROM task_completions
+    `SELECT task_id, date, status, homework_assigned, homework_due, homework_done, note,
+            override_start_time, override_end_time, override_title, override_category
+     FROM task_completions
      WHERE task_id IN (SELECT id FROM tasks WHERE owner_id = $1) AND date BETWEEN $2 AND $3`,
     [userId, from, to]
   );
@@ -167,17 +173,24 @@ tasksRouter.get("/", async (req: AuthedRequest, res) => {
       if (completion?.status === "skipped") continue;
       occurrences.push({
         id: task.id,
-        title: task.title,
-        category: task.category,
+        title: completion?.override_title ?? task.title,
+        category: completion?.override_category ?? task.category,
         recurrence: task.recurrence,
-        startTime: task.start_time,
-        endTime: task.end_time,
+        startTime: completion?.override_start_time ?? task.start_time,
+        endTime: completion?.override_end_time ?? task.end_time,
+        overridden: Boolean(
+          completion?.override_start_time ||
+            completion?.override_end_time ||
+            completion?.override_title ||
+            completion?.override_category
+        ),
         date,
         status: completion?.status ?? "not_done",
         homeworkAssigned: completion?.homework_assigned ?? false,
         homeworkDue: completion?.homework_due ?? false,
         homeworkDone: completion?.homework_done ?? false,
         note: completion?.note ?? null,
+        endsOn: task.ends_on,
       });
     }
   }
@@ -304,12 +317,68 @@ tasksRouter.put("/:id", async (req: AuthedRequest, res) => {
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-/** Lightweight time-only update for drag-to-move / drag-to-resize on the day timeline — avoids requiring every other field like the full PUT does. */
+/**
+ * Lightweight time-only update for drag-to-move / drag-to-resize on the day timeline —
+ * avoids requiring every other field like the full PUT does. For a recurring task this
+ * changes only the dragged occurrence (an override on that date's completion row), not
+ * the whole series — dragging Monday's swim practice shouldn't retime every other Monday.
+ * A one-off task has only the one occurrence anyway, so it updates the task row directly.
+ */
 tasksRouter.post("/:id/time", async (req: AuthedRequest, res) => {
   const taskId = Number(req.params.id);
-  const { startTime, endTime } = req.body ?? {};
-  if (!TIME_RE.test(startTime) || !TIME_RE.test(endTime) || startTime >= endTime) {
-    res.status(400).json({ error: "startTime and endTime must be HH:MM, with startTime before endTime" });
+  const { date, startTime, endTime } = req.body ?? {};
+  if (!date || !TIME_RE.test(startTime) || !TIME_RE.test(endTime) || startTime >= endTime) {
+    res.status(400).json({ error: "date, startTime and endTime (HH:MM, startTime before endTime) are required" });
+    return;
+  }
+
+  const taskResult = await pool.query<TaskRow>("SELECT * FROM tasks WHERE id = $1", [taskId]);
+  const task = taskResult.rows[0];
+  if (!task) {
+    res.status(404).json({ error: "Task not found" });
+    return;
+  }
+  if (!(await canAccessUser(req, task.owner_id))) {
+    res.status(403).json({ error: "Not allowed to update this task" });
+    return;
+  }
+
+  if (task.recurrence === "none") {
+    await pool.query("UPDATE tasks SET start_time = $1, end_time = $2 WHERE id = $3", [startTime, endTime, taskId]);
+  } else {
+    await pool.query(
+      `INSERT INTO task_completions (task_id, date, status, override_start_time, override_end_time)
+       VALUES ($1, $2, 'not_done', $3, $4)
+       ON CONFLICT (task_id, date) DO UPDATE SET override_start_time = EXCLUDED.override_start_time, override_end_time = EXCLUDED.override_end_time`,
+      [taskId, date, startTime, endTime]
+    );
+  }
+
+  res.json({ ok: true });
+});
+
+const CATEGORIES = ["school", "sport", "routine", "leisure", "study", "other"];
+
+/**
+ * "Edit only this day" for a recurring task: title/category/time overrides on a single
+ * occurrence's completion row, leaving the series (and every other occurrence) untouched.
+ * Unlike PUT /:id, this never touches recurrence/daysOfWeek/date, since those describe the
+ * whole series and don't have a per-occurrence meaning.
+ */
+tasksRouter.post("/:id/occurrence-edit", async (req: AuthedRequest, res) => {
+  const taskId = Number(req.params.id);
+  const { date, title, category, startTime, endTime } = req.body ?? {};
+  if (
+    !date ||
+    !title ||
+    !CATEGORIES.includes(category) ||
+    !TIME_RE.test(startTime) ||
+    !TIME_RE.test(endTime) ||
+    startTime >= endTime
+  ) {
+    res.status(400).json({
+      error: "date, title, a valid category, and startTime/endTime (HH:MM, startTime before endTime) are required",
+    });
     return;
   }
 
@@ -323,7 +392,17 @@ tasksRouter.post("/:id/time", async (req: AuthedRequest, res) => {
     return;
   }
 
-  await pool.query("UPDATE tasks SET start_time = $1, end_time = $2 WHERE id = $3", [startTime, endTime, taskId]);
+  await pool.query(
+    `INSERT INTO task_completions
+       (task_id, date, status, override_title, override_category, override_start_time, override_end_time)
+     VALUES ($1, $2, 'not_done', $3, $4, $5, $6)
+     ON CONFLICT (task_id, date) DO UPDATE SET
+       override_title = EXCLUDED.override_title,
+       override_category = EXCLUDED.override_category,
+       override_start_time = EXCLUDED.override_start_time,
+       override_end_time = EXCLUDED.override_end_time`,
+    [taskId, date, title, category, startTime, endTime]
+  );
 
   res.json({ ok: true });
 });
@@ -489,4 +568,31 @@ tasksRouter.post("/:id/note", async (req: AuthedRequest, res) => {
   );
 
   res.json({ ok: true });
+});
+
+/** Push a recurring task's window another RECURRENCE_MONTHS out, so it keeps generating occurrences. */
+tasksRouter.post("/:id/extend", async (req: AuthedRequest, res) => {
+  const taskId = Number(req.params.id);
+  const taskResult = await pool.query<TaskRow>("SELECT * FROM tasks WHERE id = $1", [taskId]);
+  const task = taskResult.rows[0];
+  if (!task) {
+    res.status(404).json({ error: "Task not found" });
+    return;
+  }
+  if (!(await canAccessUser(req, task.owner_id))) {
+    res.status(403).json({ error: "Not allowed to update this task" });
+    return;
+  }
+  if (task.recurrence === "none" || !task.ends_on) {
+    res.status(400).json({ error: "This task has no recurrence window to extend" });
+    return;
+  }
+
+  // Extend from whichever is later -- the task's current end, or today -- so a window that
+  // already lapsed doesn't get a shorter extension than a fresh one would.
+  const base = task.ends_on > today() ? task.ends_on : today();
+  const newEndsOn = addMonths(base, RECURRENCE_MONTHS);
+  await pool.query("UPDATE tasks SET ends_on = $1 WHERE id = $2", [newEndsOn, taskId]);
+
+  res.json({ ok: true, endsOn: newEndsOn });
 });

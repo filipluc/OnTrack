@@ -75,6 +75,10 @@ render.yaml              Render Blueprint for the backend service
 | homework_due | boolean | true if a previous occurrence of this task assigned homework due *on this date* |
 | homework_done | boolean | only meaningful when `homework_due` is true |
 | note | text, nullable | free-text note on this occurrence (e.g. what was covered at that day's training); trimmed server-side, empty string stored as `NULL` |
+| override_title | text, nullable | per-occurrence title override — see "Edit only this day" below |
+| override_category | text, nullable | per-occurrence category override, same mechanism |
+| override_start_time | text, nullable | per-occurrence start-time override, same mechanism |
+| override_end_time | text, nullable | per-occurrence end-time override, same mechanism |
 
 Unique constraint on `(task_id, date)` — one completion row per task per day. Recurring
 tasks are stored once and **expanded on read**: for a given date range, the backend
@@ -92,11 +96,32 @@ task only expands into occurrences between `starts_on` and `ends_on`, both set s
 (never client-supplied) — `starts_on` is always "today" at creation time and `ends_on` is
 `starts_on` + `RECURRENCE_MONTHS` (currently 3). Two consequences: a newly-added recurring
 task never retroactively shows up on past dates before it existed, and it stops generating
-new occurrences ~3 months out rather than forever, so it needs re-adding (or a future
-"extend" action, not built yet) past that point. Editing a task (`PUT /api/tasks/:id`)
+new occurrences ~3 months out rather than forever, so it needs re-adding — or extending,
+via `POST /api/tasks/:id/extend` — past that point. Editing a task (`PUT /api/tasks/:id`)
 does **not** reset an already-recurring task's window — only switching *into* recurrence
 from a one-off task starts a fresh one, since the old task never had a window to begin
-with.
+with. `extend` pushes `ends_on` another `RECURRENCE_MONTHS` out from whichever is later —
+the task's current `ends_on` or today — so a window that already lapsed before anyone
+noticed doesn't get a shorter extension than a fresh one would. `Dashboard` surfaces this
+proactively: any recurring task in the loaded week whose `ends_on` falls within 14 days
+gets a dismissible banner with an Extend button, rather than just silently vanishing once
+the window passes with nothing telling the user why.
+
+**Edit only this day** (`backend/src/routes/tasks.ts` `/:id/occurrence-edit` and `/:id/time`):
+title, category, and time can be overridden on a *single* occurrence's completion row
+(`override_title`/`override_category`/`override_start_time`/`override_end_time`) without
+touching the task row, so the rest of a recurring series is unaffected. `GET /api/tasks`
+prefers these over the task's own values when present, and reports `overridden: true` on
+that occurrence so the frontend can show it was customized. Two entry points write these
+columns: drag-to-move/drag-to-resize (`POST /:id/time`, time only — dragging Monday's swim
+practice shouldn't retime every other Monday) and the "only this day" choice in
+`EditScopeDialog` (`POST /:id/occurrence-edit`, all four fields, via `EditOccurrenceForm`).
+Neither endpoint touches `recurrence`/`days_of_week`/`date`, since those describe the whole
+series and have no coherent per-occurrence meaning — changing *those* still requires the
+full `PUT /:id` ("all occurrences" in the same scope dialog). A one-off task
+(`recurrence: 'none'`) has only the one occurrence anyway, so `/:id/time` updates the task
+row directly there instead of writing an override that would just be an indirect way of
+doing the same thing.
 
 **Homework tracking** (`backend/src/routes/tasks.ts#nextOccurrenceOfSubject`): marking
 homework as assigned on occurrence date D doesn't just flag D — it finds the *next* class
@@ -132,7 +157,9 @@ All routes except `/api/auth/*` require `Authorization: Bearer <jwt>`.
 | GET | `/api/tasks/:id` | — | Returns the full task definition (not an occurrence) — `{id, ownerId, title, category, recurrence, daysOfWeek, date, startTime, endTime}`. Used to prefill the edit form, since `GET /api/tasks` occurrences don't carry `daysOfWeek`. |
 | POST | `/api/tasks` | `{ownerId, title, category, recurrence, daysOfWeek?, date?, startTime, endTime}` | Creates a task. `startTime`/`endTime` are required (400 without both). |
 | PUT | `/api/tasks/:id` | same fields as POST minus `ownerId` | Full update of a task. `title`, `category`, `recurrence`, `startTime`, `endTime` are all required (400 if any is missing). |
-| POST | `/api/tasks/:id/time` | `{startTime, endTime}` | Time-only update — for drag-to-move / drag-to-resize on the day timeline, which shouldn't need to resend every other field the way `PUT` does. Both must be `HH:MM` with `startTime < endTime` (400 otherwise). |
+| POST | `/api/tasks/:id/time` | `{date, startTime, endTime}` | Time-only update — for drag-to-move / drag-to-resize on the day timeline, which shouldn't need to resend every other field the way `PUT` does. For a recurring task this only retimes the occurrence on `date` (an override), not the whole series; for `recurrence='none'` it updates the task row directly. `startTime`/`endTime` must be `HH:MM` with `startTime < endTime` (400 otherwise). |
+| POST | `/api/tasks/:id/occurrence-edit` | `{date, title, category, startTime, endTime}` | "Edit only this day" — overrides title/category/time on the occurrence on `date` without touching the task row or any other occurrence. Never touches recurrence/daysOfWeek/date (see Data model). All fields required; `category` must be one of the known values (400 otherwise). |
+| POST | `/api/tasks/:id/extend` | — | Pushes a recurring task's `ends_on` another ~3 months out (see Recurrence window). 400 if the task is `recurrence='none'`. Returns `{ok, endsOn}`. |
 | DELETE | `/api/tasks/:id` | `?date=` optional | No `date` (or task is `recurrence='none'`): deletes the task and all its completions (cascade). With `date` on a recurring task: leaves the task alone and marks just that date `'skipped'` instead. |
 | POST | `/api/tasks/:id/complete` | `{date, status}` | Upserts the completion row for that date. |
 | POST | `/api/tasks/:id/homework-assigned` | `{date, assigned}` | Marks (or unmarks) that the class on `date` gave homework. Writes `homework_due = assigned` onto the *next occurrence of the same subject* — found by title/category match across the owner's tasks, which may be a different task id (see Data model). 400 if no upcoming occurrence is found. |
@@ -275,6 +302,17 @@ a task id that doesn't exist returns `404`.
   (`'none'`) just confirms and calls `deleteTask(id)`. A recurring task offers "only this
   day" (`deleteTask(id, date)` — skips just that occurrence) vs. "all occurrences"
   (`deleteTask(id)` — removes the whole task).
+- **Edit flow, same split:** `Dashboard#handleEdit` sends a one-off task straight to
+  `TaskForm` (`editTaskId`, unchanged — full `PUT`, there's no ambiguity with a single
+  occurrence). A recurring task instead opens `EditScopeDialog`: "All occurrences" also
+  opens `TaskForm`; "Only this day" opens `EditOccurrenceForm` (category, title —
+  reusing `TaskForm`'s exported `CATEGORIES`/`FIXED_TITLES`/`CUSTOM_OPTION` rather than
+  duplicating that list — plus start/end time, no recurrence/date fields since those
+  aren't per-occurrence concepts) which submits via `updateOccurrence()` →
+  `POST /:id/occurrence-edit`. Drag/resize on the timeline is *always* "only this day"
+  implicitly — no dialog, since a drag is already a single, specific gesture on a single
+  block. An overridden occurrence gets a small ✎ next to its title (compact block) and a
+  note in the expanded popover, both gated on `occ.overridden`.
 - **Add-task titles** (`TaskForm.tsx#FIXED_TITLES`): there's no free-text title field by
   default — picking a category picks a fixed dropdown of that category's typical titles
   (e.g. School → Mate/Romana/Istorie/Geografie/Sport), with a trailing "Other…" entry that
@@ -295,6 +333,19 @@ a task id that doesn't exist returns `404`.
   anything recurring once you look further back than that task's own `starts_on` — there
   are simply no occurrences to sum before that point, by the same design that keeps
   recurring tasks from retroactively appearing in the past everywhere else in the app.
+- **Streaks** (`Reports.tsx#computeStreaks`): a separate, always-on section above the
+  period picker — deliberately *not* tied to the selected period, since "current streak"
+  means something relative to today regardless of what date range you're browsing.
+  Fetches its own `[today-100days, today]` window (a fixed 100-day lookback comfortably
+  covers any single task's own `starts_on`/`ends_on` span) independent of the period
+  selector's `[from, to]`, groups by task id (not by title — a streak is about one
+  specific task's own occurrence pattern, unlike homework's title-based subject
+  matching), and walks each task's occurrences newest-first counting consecutive
+  `'done'` until the first gap. Today doesn't break a streak just because it isn't
+  marked done yet — there's still time — so it's skipped rather than treated as a miss;
+  everything on or before yesterday is scored normally. One-off tasks
+  (`recurrence: 'none'`) are excluded, since "in a row" has no meaning for something that
+  only ever happens once.
 - **Notes** (`DayView.tsx#NoteField`, shared between the expanded timeline popover and the
   "No time set" fallback list): a plain per-occurrence textarea, not tied to any one
   category. Keeps its own local `draft` state seeded from `occ.note` and re-synced via a

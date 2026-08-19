@@ -355,6 +355,11 @@ function TimelineBlock({
               📝
             </span>
           )}
+          {occ.overridden && (
+            <span className="override-indicator" title="Edited for this day only">
+              ✎
+            </span>
+          )}
         </span>
         {occ.category === "school" && occ.homeworkDue && (
           <div
@@ -388,6 +393,7 @@ function TimelineBlock({
           <div className="timeline-detail-time">
             {occ.startTime} – {occ.endTime}
           </div>
+          {occ.overridden && <p className="override-note">Edited for this day only — other occurrences are unaffected.</p>}
           <div className="timeline-detail-actions">
             <button type="button" className="edit-btn" title="Edit task" onClick={() => handlers.onEdit(occ)}>
               ✎ Edit
