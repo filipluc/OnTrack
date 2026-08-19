@@ -222,6 +222,8 @@ a.secondary {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   margin-bottom: 1rem;
 }
 
@@ -239,7 +241,12 @@ a.secondary {
 .header-right {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.75rem;
+}
+
+.secondary-nav {
+  margin-bottom: 1rem;
 }
 
 .theme-toggle-btn {

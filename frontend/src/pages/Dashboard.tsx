@@ -162,9 +162,6 @@ export default function Dashboard() {
       <header className="dashboard-header">
         <h1>OnTrack</h1>
         <div className="header-right">
-          <Link to="/reports" className="secondary">
-            Reports
-          </Link>
           <ThemeToggle />
           <span className="signed-in-as">{user!.name}</span>
           <button className="secondary" onClick={logout}>
@@ -172,6 +169,12 @@ export default function Dashboard() {
           </button>
         </div>
       </header>
+
+      <div className="secondary-nav">
+        <Link to="/reports" className="secondary">
+          📊 Reports
+        </Link>
+      </div>
 
       {user!.role === "parent" && (
         <div className="schedule-switcher">
