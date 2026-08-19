@@ -157,7 +157,8 @@ a task id that doesn't exist returns `404`.
   `{token, user}`, persisted to `localStorage` under `ontrack_token` / `ontrack_user`.
   `Dashboard` owns the rest (selected child, selected date, the current week's
   occurrences) as local state.
-- **Routing:** `/login`, `/signup`, `/` (Dashboard, behind `RequireAuth`).
+- **Routing:** `/login`, `/signup`, `/` (Dashboard, behind `RequireAuth`), `/reports`
+  (Reports, behind `RequireAuth`).
 - **API client** (`src/api.ts`): thin typed wrapper over `fetch`, attaches the bearer
   token from `localStorage`, throws on non-2xx with the server's `{error}` message.
 - **Task occurrences vs. tasks:** the frontend only ever deals in *occurrences* (one
@@ -278,6 +279,20 @@ a task id that doesn't exist returns `404`.
   reveals a free-text input instead. `category: 'other'` has no fixed list (`FIXED_TITLES.other
   = []`) and goes straight to free text. The list is a frontend-only constant, not
   server-enforced — the backend accepts any non-empty title string.
+- **Reports** (`pages/Reports.tsx`): no new backend endpoint — reuses `GET /api/tasks`
+  for whatever `[from, to]` the period selector resolves to (Day/Week/Month/Year each
+  compute a range around a `refDate`, with `‹`/`›` shifting it by that period's span;
+  Custom shows two date inputs instead of nav arrows) and aggregates client-side
+  (`aggregate()`) into scheduled-vs-done minutes, grouped by category and then by title
+  within each category. A Year range can mean iterating ~365 days server-side per
+  request; fine at this app's scale, not something to reuse for a bulk-export feature.
+  Occurrences without a time can't contribute a duration and are counted separately
+  (`untimedCount`) rather than silently dropped. **Known gap, not a bug:** because
+  recurring tasks only expand into occurrences within their `starts_on`/`ends_on` window
+  (see Recurrence window above), a Year (or any long Custom range) report undercounts
+  anything recurring once you look further back than that task's own `starts_on` — there
+  are simply no occurrences to sum before that point, by the same design that keeps
+  recurring tasks from retroactively appearing in the past everywhere else in the app.
 
 ## Environment variables
 

@@ -192,6 +192,12 @@ button:disabled {
   color: var(--text);
 }
 
+a.secondary {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
 .danger {
   background: var(--danger);
   color: white;
@@ -222,6 +228,12 @@ button:disabled {
 .dashboard-header h1 {
   color: var(--primary);
   margin: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
 }
 
 .header-right {
@@ -939,4 +951,125 @@ button:disabled {
   .modal {
     border-radius: var(--radius);
   }
+}
+
+/* Reports */
+
+.period-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.custom-range {
+  display: flex;
+  gap: 0.8rem;
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.custom-range label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.custom-range input {
+  padding: 0.6rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.period-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 0.7rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.period-label {
+  font-weight: 600;
+}
+
+.report-grand-total {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.report-grand-total span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.report-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.report-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.report-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.report-card-totals {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.report-task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.report-task-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.3rem 0;
+  border-top: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.report-task-totals {
+  color: var(--muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.report-note {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-top: 1rem;
 }

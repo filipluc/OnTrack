@@ -74,6 +74,26 @@ parent can reset it.
 - **Dark mode:** tap the 🌙 / ☀️ button in the top-right corner to switch. It remembers
   your choice; without one, it follows your device's system setting.
 
+## Reports
+
+Tap **Reports** in the top-right of your schedule to see totals instead of a calendar.
+
+- **Pick who:** same "My schedule" / child tabs as the main view.
+- **Pick a period:** **Day**, **Week**, **Month**, or **Year** — use the "‹" / "›" arrows
+  to move to the previous or next one. Or pick **Custom** for any specific date range.
+- **What you see:** every category with something scheduled in that period, each showing
+  two numbers — hours *scheduled* and hours *done* (checked off) — and underneath it, the
+  same two numbers broken down by each individual task/subject. A total across everything
+  sits at the top.
+- Tasks with no time set (only possible on data from before times were required) aren't
+  counted in the hours, since there's no duration to add up — a small note at the bottom
+  says how many were skipped, if any.
+- **Heads up on Year (or a long Custom range):** a repeating task only shows up going back
+  to when it was created (recurring tasks never appear retroactively in the past anywhere
+  in the app), so a Year report can under-count hours for anything recurring that's older
+  than a few months — it's not missing data, there's just genuinely no record generated
+  that far back.
+
 ## Who can see and do what
 
 - **Parents** can view and edit everything on their own schedule and on any of their

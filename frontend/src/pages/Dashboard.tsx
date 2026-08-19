@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../auth";
 import {
   getChildren,
@@ -161,6 +162,9 @@ export default function Dashboard() {
       <header className="dashboard-header">
         <h1>OnTrack</h1>
         <div className="header-right">
+          <Link to="/reports" className="secondary">
+            Reports
+          </Link>
           <ThemeToggle />
           <span className="signed-in-as">{user!.name}</span>
           <button className="secondary" onClick={logout}>

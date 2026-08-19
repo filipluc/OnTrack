@@ -42,3 +42,39 @@ export function formatMonthYear(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00Z");
   return d.toLocaleDateString(undefined, { month: "long", year: "numeric", timeZone: "UTC" });
 }
+
+export function formatShortDate(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00Z");
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+}
+
+export function startOfMonth(dateStr: string): string {
+  return dateStr.slice(0, 8) + "01";
+}
+
+export function endOfMonth(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00Z");
+  d.setUTCMonth(d.getUTCMonth() + 1);
+  d.setUTCDate(0); // rolls back to the last day of the target month
+  return toISODate(d);
+}
+
+export function addMonths(dateStr: string, months: number): string {
+  const d = new Date(dateStr + "T00:00:00Z");
+  d.setUTCMonth(d.getUTCMonth() + months);
+  return toISODate(d);
+}
+
+export function startOfYear(dateStr: string): string {
+  return dateStr.slice(0, 4) + "-01-01";
+}
+
+export function endOfYear(dateStr: string): string {
+  return dateStr.slice(0, 4) + "-12-31";
+}
+
+export function addYears(dateStr: string, years: number): string {
+  const d = new Date(dateStr + "T00:00:00Z");
+  d.setUTCFullYear(d.getUTCFullYear() + years);
+  return toISODate(d);
+}
