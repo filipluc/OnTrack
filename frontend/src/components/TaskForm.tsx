@@ -45,7 +45,10 @@ export default function TaskForm({
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [remind, setRemind] = useState(false);
-  const [remindMinutes, setRemindMinutes] = useState(60);
+  // Kept as free-text rather than a clamped number -- clamping on every keystroke made it
+  // impossible to clear the field down to empty before typing a new value (deleting the
+  // last digit just snapped straight back to 1). Parsed and clamped only on submit.
+  const [remindMinutes, setRemindMinutes] = useState("60");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -67,7 +70,7 @@ export default function TaskForm({
         setStartTime(task.startTime ?? "");
         setEndTime(task.endTime ?? "");
         setRemind(task.remindMinutesBefore != null);
-        if (task.remindMinutesBefore != null) setRemindMinutes(task.remindMinutesBefore);
+        if (task.remindMinutesBefore != null) setRemindMinutes(String(task.remindMinutesBefore));
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Could not load task"))
       .finally(() => setLoading(false));
@@ -111,6 +114,7 @@ export default function TaskForm({
       setError("Start and end time are required");
       return;
     }
+    const parsedRemindMinutes = Math.max(1, Math.min(1440, Math.round(Number(remindMinutes)) || 60));
     setSaving(true);
     try {
       const fields = {
@@ -121,7 +125,7 @@ export default function TaskForm({
         daysOfWeek: recurrence === "weekly" ? daysOfWeek : undefined,
         startTime,
         endTime,
-        remindMinutesBefore: remind ? remindMinutes : null,
+        remindMinutesBefore: remind ? parsedRemindMinutes : null,
       };
       if (editTaskId !== undefined) {
         await updateTask(editTaskId, fields);
@@ -231,7 +235,7 @@ export default function TaskForm({
                     min={1}
                     max={1440}
                     value={remindMinutes}
-                    onChange={(e) => setRemindMinutes(Math.max(1, Number(e.target.value) || 1))}
+                    onChange={(e) => setRemindMinutes(e.target.value)}
                   />
                   minutes before
                 </label>
