@@ -58,7 +58,7 @@ parent can reset it.
   - **Start/end time** — required, and what places the task on the day's time grid
   - **🔔 Remind me before this** — off by default (most tasks don't need a ping); tick it
     to get a notification a set number of minutes before it starts, and set how many
-    (defaults to 15). Only works once notifications are turned on — see below.
+    (defaults to 60). Only works once notifications are turned on — see below.
 - **Mark done:** tap the checkbox on a task's block. For repeating tasks, this only marks
   *that day's* occurrence — a daily task's checkbox resets fresh every morning.
 - **Edit a task:** tap it to open it, then tap **✎**. For a one-off task this just opens

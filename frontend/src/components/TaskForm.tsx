@@ -45,7 +45,7 @@ export default function TaskForm({
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [remind, setRemind] = useState(false);
-  const [remindMinutes, setRemindMinutes] = useState(15);
+  const [remindMinutes, setRemindMinutes] = useState(60);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
