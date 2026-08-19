@@ -234,14 +234,23 @@ a task id that doesn't exist returns `404`.
   screen on a busy day) got hijacked into a drag instead of scrolling, found via real
   on-device testing. Fixed with a long-press gate, touch/pen only (`e.pointerType`) —
   mouse still arms immediately, since a mouse drag doesn't compete with a scroll gesture
-  the way touch does. On `pointerdown` from touch, the block does *not* capture the
-  pointer yet; it starts a `LONG_PRESS_MS = 2000` timer and sits in an "unarmed" state
-  while `touch-action: pan-y` (not `none`) lets the browser scroll the page normally if
-  the finger actually moves — `onPointerMove` cancels the pending timer once movement
-  exceeds `LONG_PRESS_CANCEL_PX = 10`, on the read that real movement this early means a
-  scroll swipe, not someone holding still to start a drag. Only once the timer fires does
-  `armDrag()` call `setPointerCapture` and flip `armed: true` (visible as a
-  `.timeline-block.armed` outline), at which point movement is interpreted as a drag the
+  the way touch does. `pointerdown` calls `setPointerCapture` **synchronously**, for
+  every pointer type, right there in the event handler — capture alone doesn't block
+  native scrolling (that's `touch-action: pan-y`'s job), it only affects where subsequent
+  events are targeted, so this is safe to do immediately and is more reliable than
+  capturing later. A second on-device round found that calling `setPointerCapture` from
+  inside the `setTimeout` callback once the long-press fired — instead of synchronously
+  in `pointerdown` — didn't reliably stick on a real phone (the arm outline would flash on
+  then immediately vanish); moving the capture call earlier fixed it. Touch starts in an
+  "unarmed" state and a `LONG_PRESS_MS = 2000` timer runs while `touch-action: pan-y`
+  lets the browser scroll the page normally if the finger actually moves —
+  `onPointerMove` releases capture and cancels the pending timer once movement exceeds
+  `LONG_PRESS_CANCEL_PX = 18` (loose enough to absorb natural hand tremor during the hold,
+  which at the original `10` was enough on its own to falsely cancel a genuine long-press),
+  on the read that real movement this early means a scroll swipe, not someone holding
+  still to start a drag. Only once the timer fires does `armDrag()` flip `armed: true`
+  (visible as a `.timeline-block.armed` outline; capture is already held by then), at
+  which point movement is interpreted as a drag the
   same way it always was. If the finger never moves during the 2s hold and is then
   lifted, it still falls through to `onToggleExpand()` like an ordinary tap.
 - **Theme:** `ThemeToggle.tsx` toggles a `data-theme` attribute on `<html>` between

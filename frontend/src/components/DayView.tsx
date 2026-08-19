@@ -21,7 +21,7 @@ const DRAG_THRESHOLD_PX = 4;
 // that starts on a block isn't hijacked. Mouse drags arm immediately (no scroll to conflict with).
 const LONG_PRESS_MS = 2000;
 // Touch only: if the finger moves this much before the long-press fires, it's a scroll, not a hold.
-const LONG_PRESS_CANCEL_PX = 10;
+const LONG_PRESS_CANCEL_PX = 18;
 
 type Handlers = {
   onToggle: (occurrence: Occurrence) => void;
@@ -209,13 +209,17 @@ function TimelineBlock({
   }
 
   function armDrag(pointerId: number) {
-    blockRef.current?.setPointerCapture(pointerId);
     setDrag((d) => (d && d.pointerId === pointerId ? { ...d, armed: true } : d));
   }
 
   function startDrag(mode: "move" | "resize", e: React.PointerEvent) {
     const pointerId = e.pointerId;
     const isTouch = e.pointerType === "touch" || e.pointerType === "pen";
+    // Capture synchronously, inside the pointerdown handler itself -- capturing later
+    // (e.g. from a setTimeout once the long-press fires) is unreliable on mobile browsers.
+    // Capture alone doesn't block native scrolling; touch-action: pan-y still does that job
+    // until we explicitly release capture below.
+    blockRef.current?.setPointerCapture(pointerId);
     setDrag({
       mode,
       pointerId,
@@ -228,8 +232,6 @@ function TimelineBlock({
     });
     if (isTouch) {
       longPressTimer.current = window.setTimeout(() => armDrag(pointerId), LONG_PRESS_MS);
-    } else {
-      blockRef.current?.setPointerCapture(pointerId);
     }
   }
 
@@ -239,10 +241,12 @@ function TimelineBlock({
 
     if (!drag.armed) {
       // Still waiting out the long-press. Real movement this early means the finger is
-      // scrolling the page, not holding still to start a drag -- back off and let it scroll.
+      // scrolling the page, not holding still to start a drag -- release capture and back
+      // off so the browser's native scroll (touch-action: pan-y) takes it from here.
       const deltaX = e.clientX - drag.startX;
       if (Math.hypot(deltaX, deltaY) > LONG_PRESS_CANCEL_PX) {
         clearPendingTimer();
+        blockRef.current?.releasePointerCapture(drag.pointerId);
         setDrag(null);
       }
       return;
