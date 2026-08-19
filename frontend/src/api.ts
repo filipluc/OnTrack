@@ -64,7 +64,7 @@ export function addChild(name: string, email: string, password: string) {
   });
 }
 
-export type Category = "school" | "sport" | "routine" | "leisure" | "other";
+export type Category = "school" | "sport" | "routine" | "leisure" | "study" | "other";
 export type Recurrence = "none" | "daily" | "weekly";
 
 export interface Occurrence {
@@ -95,13 +95,46 @@ export interface NewTask {
   recurrence: Recurrence;
   daysOfWeek?: number[];
   date?: string;
-  startTime?: string;
-  endTime?: string;
+  startTime: string;
+  endTime: string;
 }
 
 export function addTask(task: NewTask) {
   return request<{ id: number }>("/tasks", {
     method: "POST",
+    body: JSON.stringify(task),
+  });
+}
+
+export interface TaskDetail {
+  id: number;
+  ownerId: number;
+  title: string;
+  category: Category;
+  recurrence: Recurrence;
+  daysOfWeek: number[];
+  date: string | null;
+  startTime: string | null;
+  endTime: string | null;
+}
+
+export function getTask(id: number) {
+  return request<TaskDetail>(`/tasks/${id}`);
+}
+
+export interface TaskEdits {
+  title: string;
+  category: Category;
+  recurrence: Recurrence;
+  daysOfWeek?: number[];
+  date?: string;
+  startTime: string;
+  endTime: string;
+}
+
+export function updateTask(id: number, task: TaskEdits) {
+  return request<{ ok: true }>(`/tasks/${id}`, {
+    method: "PUT",
     body: JSON.stringify(task),
   });
 }

@@ -382,11 +382,17 @@ button:disabled {
   color: #a21caf;
 }
 
+.cat-study {
+  background: #cffafe;
+  color: #0e7490;
+}
+
 .cat-other {
   background: #e5e7eb;
   color: #374151;
 }
 
+.edit-btn,
 .delete-btn {
   background: none;
   border: none;
@@ -394,6 +400,10 @@ button:disabled {
   font-size: 1.1rem;
   padding: 0.3rem;
   line-height: 1;
+}
+
+.edit-btn:hover {
+  color: var(--primary);
 }
 
 .delete-btn:hover {

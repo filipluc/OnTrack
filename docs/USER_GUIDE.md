@@ -29,13 +29,18 @@ to go through, and no invite code to share.
   dot marks days that already have something scheduled. Use the "‹" / "›" arrows above the
   strip to move to the previous or next week.
 - **Add a task:** tap **+ Add task**, fill in:
-  - **Title** — what it is (e.g. "Soccer practice")
-  - **Category** — School, Sport, Routine, Leisure, or Other (shows as a colored tag)
+  - **Category** — School, Sport, Routine, Leisure, Study, or Other (shows as a colored tag)
+  - **Title** — pick from a fixed list for that category (e.g. School → Mate, Romana,
+    Istorie, Geografie, Sport), or choose **Other…** for a free-text title. Other has no
+    fixed list and always asks for a title directly.
   - **Repeats** — *Just once* (pick a date), *Every day*, or *Certain days each week*
     (pick which weekdays)
-  - **Start/end time** — optional
+  - **Start/end time** — required
 - **Mark done:** tap the checkbox next to a task. For repeating tasks, this only marks
   *that day's* occurrence — a daily task's checkbox resets fresh every morning.
+- **Edit a task:** tap the ✎ next to it to change any of the above (category, title,
+  repeats, time). Editing applies to every occurrence of that task — there's no way to
+  change just one instance of a repeating task.
 - **Delete a task:** tap the ✕ next to it. For a repeating task, you're asked whether to
   delete **only this day** (skips just that one occurrence, the rest of the schedule stays)
   or **all occurrences** (removes the whole repeating task). A one-off task just asks you

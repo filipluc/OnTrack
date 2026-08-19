@@ -183,10 +183,41 @@ tasksRouter.get("/", async (req: AuthedRequest, res) => {
   res.json({ occurrences });
 });
 
+/** The full task definition (not an occurrence) — used to prefill the edit form. */
+tasksRouter.get("/:id", async (req: AuthedRequest, res) => {
+  const taskId = Number(req.params.id);
+  const result = await pool.query<TaskRow>("SELECT * FROM tasks WHERE id = $1", [taskId]);
+  const task = result.rows[0];
+  if (!task) {
+    res.status(404).json({ error: "Task not found" });
+    return;
+  }
+  if (!(await canAccessUser(req, task.owner_id))) {
+    res.status(403).json({ error: "Not allowed to view this task" });
+    return;
+  }
+
+  res.json({
+    id: task.id,
+    ownerId: task.owner_id,
+    title: task.title,
+    category: task.category,
+    recurrence: task.recurrence,
+    daysOfWeek: task.days_of_week ? task.days_of_week.split(",").map(Number) : [],
+    date: task.date,
+    startTime: task.start_time,
+    endTime: task.end_time,
+  });
+});
+
 tasksRouter.post("/", async (req: AuthedRequest, res) => {
   const { ownerId, title, category, recurrence, daysOfWeek, date, startTime, endTime } = req.body ?? {};
   if (!ownerId || !title || !category || !recurrence) {
     res.status(400).json({ error: "ownerId, title, category and recurrence are required" });
+    return;
+  }
+  if (!startTime || !endTime) {
+    res.status(400).json({ error: "startTime and endTime are required" });
     return;
   }
   if (!(await canAccessUser(req, ownerId))) {
@@ -232,6 +263,10 @@ tasksRouter.put("/:id", async (req: AuthedRequest, res) => {
   }
 
   const { title, category, recurrence, daysOfWeek, date, startTime, endTime } = req.body ?? {};
+  if (!title || !category || !recurrence || !startTime || !endTime) {
+    res.status(400).json({ error: "title, category, recurrence, startTime and endTime are required" });
+    return;
+  }
 
   // Editing doesn't restart an already-recurring task's window; only switching into
   // recurrence from a one-off task (or a task somehow missing its window) starts a fresh one.

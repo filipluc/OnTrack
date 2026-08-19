@@ -27,6 +27,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAddTask, setShowAddTask] = useState(false);
+  const [editTaskId, setEditTaskId] = useState<number | null>(null);
   const [showAddChild, setShowAddChild] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Occurrence | null>(null);
 
@@ -104,6 +105,10 @@ export default function Dashboard() {
     } catch {
       loadTasks();
     }
+  }
+
+  function handleEdit(occ: Occurrence) {
+    setEditTaskId(occ.id);
   }
 
   function handleDelete(occ: Occurrence) {
@@ -186,6 +191,7 @@ export default function Dashboard() {
         <DayView
           occurrences={dayOccurrences}
           onToggle={handleToggle}
+          onEdit={handleEdit}
           onDelete={handleDelete}
           onSetHomeworkAssigned={handleSetHomeworkAssigned}
           onSetHomeworkDone={handleSetHomeworkDone}
@@ -203,6 +209,19 @@ export default function Dashboard() {
           onCancel={() => setShowAddTask(false)}
           onDone={() => {
             setShowAddTask(false);
+            loadTasks();
+          }}
+        />
+      )}
+
+      {editTaskId !== null && (
+        <TaskForm
+          ownerId={viewedId}
+          defaultDate={date}
+          editTaskId={editTaskId}
+          onCancel={() => setEditTaskId(null)}
+          onDone={() => {
+            setEditTaskId(null);
             loadTasks();
           }}
         />

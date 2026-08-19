@@ -55,11 +55,11 @@ render.yaml              Render Blueprint for the backend service
 | id | serial PK | |
 | owner_id | int | FK → users.id — whose schedule this task is on |
 | title | text | |
-| category | text | `'school'` \| `'sport'` \| `'routine'` \| `'leisure'` \| `'other'` |
+| category | text | `'school'` \| `'sport'` \| `'routine'` \| `'leisure'` \| `'study'` \| `'other'` |
 | recurrence | text | `'none'` \| `'daily'` \| `'weekly'` |
 | days_of_week | text, nullable | comma-separated ints, 0=Sun..6=Sat; only used when `recurrence='weekly'` |
 | date | text, nullable | `YYYY-MM-DD`; only used when `recurrence='none'` |
-| start_time / end_time | text, nullable | `HH:MM`, optional either way |
+| start_time / end_time | text, nullable | `HH:MM`; nullable in the DB, but **required by the API** (`POST`/`PUT`) — column stays nullable since older rows may predate that requirement |
 | created_by | int | FK → users.id — who added it (parent or the child themself) |
 | starts_on / ends_on | text, nullable | `YYYY-MM-DD`; only set when `recurrence != 'none'` — bounds which dates a recurring task expands into (see below). `null` for one-off tasks, which don't need a window. |
 
@@ -126,8 +126,9 @@ All routes except `/api/auth/*` require `Authorization: Bearer <jwt>`.
 | GET | `/api/children` | — | Parent only. Lists their linked children. |
 | POST | `/api/children` | `{name, email, password}` | Parent only. Creates a child account linked to the caller. |
 | GET | `/api/tasks` | `?userId=&from=&to=` | Returns `{occurrences}` — expanded per-date task instances in the range, inclusive. |
-| POST | `/api/tasks` | `{ownerId, title, category, recurrence, daysOfWeek?, date?, startTime?, endTime?}` | Creates a task. |
-| PUT | `/api/tasks/:id` | same fields as POST minus `ownerId` | Full update of a task. |
+| GET | `/api/tasks/:id` | — | Returns the full task definition (not an occurrence) — `{id, ownerId, title, category, recurrence, daysOfWeek, date, startTime, endTime}`. Used to prefill the edit form, since `GET /api/tasks` occurrences don't carry `daysOfWeek`. |
+| POST | `/api/tasks` | `{ownerId, title, category, recurrence, daysOfWeek?, date?, startTime, endTime}` | Creates a task. `startTime`/`endTime` are required (400 without both). |
+| PUT | `/api/tasks/:id` | same fields as POST minus `ownerId` | Full update of a task. `title`, `category`, `recurrence`, `startTime`, `endTime` are all required (400 if any is missing). |
 | DELETE | `/api/tasks/:id` | `?date=` optional | No `date` (or task is `recurrence='none'`): deletes the task and all its completions (cascade). With `date` on a recurring task: leaves the task alone and marks just that date `'skipped'` instead. |
 | POST | `/api/tasks/:id/complete` | `{date, status}` | Upserts the completion row for that date. |
 | POST | `/api/tasks/:id/homework-assigned` | `{date, assigned}` | Marks (or unmarks) that the class on `date` gave homework. Writes `homework_due = assigned` onto the *next occurrence of the same subject* — found by title/category match across the owner's tasks, which may be a different task id (see Data model). 400 if no upcoming occurrence is found. |
@@ -157,7 +158,15 @@ a task id that doesn't exist returns `404`.
 - **API client** (`src/api.ts`): thin typed wrapper over `fetch`, attaches the bearer
   token from `localStorage`, throws on non-2xx with the server's `{error}` message.
 - **Task occurrences vs. tasks:** the frontend only ever deals in *occurrences* (one
-  per date, from `GET /api/tasks`) for display; it never fetches raw `tasks` rows.
+  per date, from `GET /api/tasks`) for display; it never fetches raw `tasks` rows —
+  except when editing (see below), which needs the actual task record.
+- **Edit flow:** `TaskForm` doubles as both the add and edit form via an optional
+  `editTaskId` prop. In edit mode it fetches the full task with `GET /api/tasks/:id` on
+  mount (occurrences don't carry `daysOfWeek`, so the add-form's local state can't be
+  reused directly), prefills every field including resolving whether the task's title
+  matches a `FIXED_TITLES` entry or needs the custom-title fallback, and submits via
+  `updateTask` (`PUT`) instead of `addTask` (`POST`). Triggered by the ✎ button in
+  `DayView`, next to delete.
 - **Week view:** `Dashboard` fetches occurrences for the whole Monday–Sunday week
   containing the selected date in one call (`date.ts#getWeekDates`), and derives both
   the day's task list and which days in `WeekStrip` get a dot from that same set —
@@ -166,6 +175,12 @@ a task id that doesn't exist returns `404`.
   (`'none'`) just confirms and calls `deleteTask(id)`. A recurring task offers "only this
   day" (`deleteTask(id, date)` — skips just that occurrence) vs. "all occurrences"
   (`deleteTask(id)` — removes the whole task).
+- **Add-task titles** (`TaskForm.tsx#FIXED_TITLES`): there's no free-text title field by
+  default — picking a category picks a fixed dropdown of that category's typical titles
+  (e.g. School → Mate/Romana/Istorie/Geografie/Sport), with a trailing "Other…" entry that
+  reveals a free-text input instead. `category: 'other'` has no fixed list (`FIXED_TITLES.other
+  = []`) and goes straight to free text. The list is a frontend-only constant, not
+  server-enforced — the backend accepts any non-empty title string.
 
 ## Environment variables
 

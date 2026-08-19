@@ -30,7 +30,7 @@ export async function initSchema() {
       id SERIAL PRIMARY KEY,
       owner_id INTEGER NOT NULL REFERENCES users(id),
       title TEXT NOT NULL,
-      category TEXT NOT NULL CHECK (category IN ('school', 'sport', 'routine', 'leisure', 'other')),
+      category TEXT NOT NULL CHECK (category IN ('school', 'sport', 'routine', 'leisure', 'study', 'other')),
       recurrence TEXT NOT NULL CHECK (recurrence IN ('none', 'daily', 'weekly')),
       days_of_week TEXT,
       date TEXT,
@@ -40,6 +40,10 @@ export async function initSchema() {
       starts_on TEXT,
       ends_on TEXT
     );
+
+    ALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_category_check;
+    ALTER TABLE tasks ADD CONSTRAINT tasks_category_check
+      CHECK (category IN ('school', 'sport', 'routine', 'leisure', 'study', 'other'));
 
     ALTER TABLE tasks ADD COLUMN IF NOT EXISTS starts_on TEXT;
     ALTER TABLE tasks ADD COLUMN IF NOT EXISTS ends_on TEXT;

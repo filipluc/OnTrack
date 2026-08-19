@@ -5,18 +5,21 @@ const CATEGORY_LABELS: Record<string, string> = {
   sport: "Sport",
   routine: "Routine",
   leisure: "Leisure",
+  study: "Study",
   other: "Other",
 };
 
 export default function DayView({
   occurrences,
   onToggle,
+  onEdit,
   onDelete,
   onSetHomeworkAssigned,
   onSetHomeworkDone,
 }: {
   occurrences: Occurrence[];
   onToggle: (occurrence: Occurrence) => void;
+  onEdit: (occurrence: Occurrence) => void;
   onDelete: (occurrence: Occurrence) => void;
   onSetHomeworkAssigned: (occurrence: Occurrence, assigned: boolean) => void;
   onSetHomeworkDone: (occurrence: Occurrence, done: boolean) => void;
@@ -45,6 +48,9 @@ export default function DayView({
                 </span>
               )}
             </div>
+            <button className="edit-btn" title="Edit task" onClick={() => onEdit(occ)}>
+              ✎
+            </button>
             <button className="delete-btn" title="Delete task" onClick={() => onDelete(occ)}>
               ✕
             </button>
