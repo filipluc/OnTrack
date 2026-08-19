@@ -95,6 +95,20 @@ One row per subscribed device — a user can have several (phone + laptop, etc.)
 on `endpoint` conflict, since re-subscribing the same browser (e.g. after clearing the
 permission) reuses the same endpoint.
 
+**sent_notifications**
+| column | type | notes |
+|---|---|---|
+| id | serial PK | |
+| user_id | int | FK → users.id, `ON DELETE CASCADE` |
+| kind | text | `'reminder'` \| `'homework'` |
+| ref_key | text | for `'reminder'`, the task id; for `'homework'`, the constant `'daily'` |
+| date | text | `YYYY-MM-DD` |
+| sent_at | timestamptz | |
+
+Unique constraint on `(user_id, kind, ref_key, date)` — this is what makes the scheduler's
+de-dupe crash-safe (see Push notifications below) instead of an in-memory set that a
+restart would wipe.
+
 Unique constraint on `(task_id, date)` — one completion row per task per day. Recurring
 tasks are stored once and **expanded on read**: for a given date range, the backend
 walks each date, checks which tasks occur on it (daily = always **and within its
@@ -183,11 +197,16 @@ checks two independent things:
   assigned later in the evening — only marked "notified for today" once a push actually
   goes out, not just once the clock passes the check time.
 
-Both checks de-dupe via in-memory `Set`s keyed by user+task+date (reminders) or user+date
-(homework), reset when the scheduler's local date rolls over. This is intentionally not
-persisted — a backend restart (Render redeploy, etc.) can in rare cases cause one reminder
-to resend, which was judged an acceptable trade-off against pulling in a real job queue for
-a family-scale app.
+Both checks de-dupe via a `sent_notifications` table (`tryClaimNotification()`), one row
+per `(user_id, kind, ref_key, date)` with a unique constraint doing the actual dedup —
+whichever tick's `INSERT` succeeds first is the one that sends; a conflict means it was
+already sent and this tick skips it. This started as an in-memory `Set` instead, reset
+whenever the scheduler's local date rolled over — but this app gets redeployed often
+(every push restarts the Render dyno), and each restart wiped the in-memory state, so a
+still-true condition (an unfinished reminder, homework still due) would resend right after
+every restart. Switched to the DB table after that produced real duplicate pushes (a user
+reported getting 3 copies of the same notification), since a restart no longer forgets
+what was already sent.
 
 **Timezone**: task times are plain wall-clock strings with no timezone info, same
 assumption the rest of the app already makes — so the scheduler pins "now" to a fixed

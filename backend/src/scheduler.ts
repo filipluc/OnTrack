@@ -30,20 +30,31 @@ function toMinutes(t: string): number {
   return h * 60 + m;
 }
 
-// In-memory de-dupe only -- reset daily, and lost on a backend restart/redeploy. That means a
-// reminder could in rare cases resend after a restart, which is an acceptable trade-off for a
-// best-effort reminder rather than pulling in a persistent job queue for this.
-const remindedTasks = new Set<string>();
-const homeworkNotifiedUsers = new Set<string>();
-let lastDate: string | null = null;
+/**
+ * Claims a (user, kind, refKey, date) notification slot, persisted in the DB rather than
+ * in-memory -- an in-memory de-dupe set is wiped by every backend restart (a Render
+ * redeploy, a crash, a local `tsx watch` reload), and this app gets redeployed often
+ * enough that that was causing real duplicate pushes, not just a theoretical edge case.
+ * Returns true if this call is the one that gets to send (first claim wins); false if
+ * something already claimed this slot.
+ */
+async function tryClaimNotification(userId: number, kind: string, refKey: string, date: string): Promise<boolean> {
+  try {
+    await pool.query("INSERT INTO sent_notifications (user_id, kind, ref_key, date) VALUES ($1, $2, $3, $4)", [
+      userId,
+      kind,
+      refKey,
+      date,
+    ]);
+    return true;
+  } catch (err) {
+    if ((err as { code?: string }).code === "23505") return false; // unique_violation -- already claimed
+    throw err;
+  }
+}
 
 async function tick() {
   const { date, minutesOfDay } = localParts();
-  if (date !== lastDate) {
-    remindedTasks.clear();
-    homeworkNotifiedUsers.clear();
-    lastDate = date;
-  }
 
   const subscribedUsers = await pool.query<{ user_id: number; homework_check_time: string }>(
     `SELECT DISTINCT ps.user_id, u.homework_check_time
@@ -57,11 +68,9 @@ async function tick() {
       // remindMinutesBefore is opt-in per task (null = no reminder for it) -- most tasks
       // shouldn't page the family, only the ones someone explicitly asked to be reminded about.
       if (occ.status === "done" || !occ.startTime || occ.remindMinutesBefore == null) continue;
-      const key = `${userId}:${occ.id}:${occ.date}`;
-      if (remindedTasks.has(key)) continue;
       const minutesUntilStart = toMinutes(occ.startTime) - minutesOfDay;
       if (minutesUntilStart > 0 && minutesUntilStart <= occ.remindMinutesBefore) {
-        remindedTasks.add(key);
+        if (!(await tryClaimNotification(userId, "reminder", String(occ.id), occ.date))) continue;
         await sendPushToUser(userId, {
           title: `${occ.title} starts soon`,
           body: `Starts at ${occ.startTime}`,
@@ -70,11 +79,12 @@ async function tick() {
       }
     }
 
-    const homeworkKey = `${userId}:${date}`;
-    if (minutesOfDay >= toMinutes(homeworkCheckTime) && !homeworkNotifiedUsers.has(homeworkKey)) {
+    if (minutesOfDay >= toMinutes(homeworkCheckTime)) {
       const dueNotDone = occurrences.filter((occ) => occ.category === "school" && occ.homeworkDue && !occ.homeworkDone);
-      if (dueNotDone.length > 0) {
-        homeworkNotifiedUsers.add(homeworkKey);
+      // Only claimed once we're actually about to send -- if nothing's due yet, the slot stays
+      // open so a class marked "homework given" later in the evening still gets picked up on
+      // a later tick, not just at exactly the configured check time.
+      if (dueNotDone.length > 0 && (await tryClaimNotification(userId, "homework", "daily", date))) {
         await sendPushToUser(userId, {
           title:
             dueNotDone.length === 1 ? "Homework still due today" : `${dueNotDone.length} homework items still due today`,
@@ -82,8 +92,6 @@ async function tick() {
           url: "/agenda",
         });
       }
-      // Left unmarked when nothing is due yet, so a class marked "homework given" later
-      // in the evening still gets picked up on a later tick, not just at exactly 18:00.
     }
   }
 }

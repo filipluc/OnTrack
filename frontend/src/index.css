@@ -283,9 +283,9 @@ a.secondary {
   color: var(--muted);
 }
 
-.homework-check-time input[type="time"] {
+.homework-check-time select {
   font-size: 0.8rem;
-  padding: 0.15rem 0.3rem;
+  padding: 0.15rem 0.2rem;
 }
 
 .notifications-error {
