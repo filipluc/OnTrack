@@ -114,6 +114,22 @@ Tap **Reports** in the top-right of your schedule to see totals instead of a cal
   than a few months — it's not missing data, there's just genuinely no record generated
   that far back.
 
+## Agenda
+
+Tap **✅ Agenda** (next to Reports) for a plain checklist of a whole week, instead of one
+day at a time on the main schedule.
+
+- **Pick a week:** "‹" / "›" moves a week at a time; the list is grouped by day, and days
+  with nothing to show are skipped entirely.
+- **By default, only shows what's not done yet** — the point is seeing what's left. Tick
+  "Show done too" to also see everything you've already checked off.
+- **All / 📖 Homework / ⚽ Sport buttons** narrow the list down: Homework shows just School
+  tasks with homework due that week (the quick way to answer "what homework do I have this
+  week?"); Sport shows every sport task. All shows everything, no filtering.
+- You can check items off right from this list, same as on the main schedule.
+- A School task with homework due shows an **"HW due"** (or **"HW done"**) tag inline, so
+  you can spot upcoming homework without opening each day.
+
 ## Who can see and do what
 
 - **Parents** can view and edit everything on their own schedule and on any of their

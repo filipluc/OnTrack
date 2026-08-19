@@ -187,7 +187,7 @@ a task id that doesn't exist returns `404`.
   `Dashboard` owns the rest (selected child, selected date, the current week's
   occurrences) as local state.
 - **Routing:** `/login`, `/signup`, `/` (Dashboard, behind `RequireAuth`), `/reports`
-  (Reports, behind `RequireAuth`).
+  (Reports, behind `RequireAuth`), `/agenda` (Agenda, behind `RequireAuth`).
 - **API client** (`src/api.ts`): thin typed wrapper over `fetch`, attaches the bearer
   token from `localStorage`, throws on non-2xx with the server's `{error}` message.
 - **Task occurrences vs. tasks:** the frontend only ever deals in *occurrences* (one
@@ -346,6 +346,22 @@ a task id that doesn't exist returns `404`.
   everything on or before yesterday is scored normally. One-off tasks
   (`recurrence: 'none'`) are excluded, since "in a row" has no meaning for something that
   only ever happens once.
+- **Agenda** (`pages/Agenda.tsx`): a general "what's left this week" checklist, not
+  category-restricted (the original ask was homework-specific, generalized once it came
+  up that a broader view was more useful). No new endpoint — one `GET /api/tasks` call
+  for the selected Monday–Sunday week (prev/next only, no Day/Month/Year like Reports;
+  a week is the natural unit for "what's on my plate"), grouped by day and rendered only
+  for days that have something after the filter. Defaults to hiding `status === 'done'`
+  occurrences (a "Show done too" checkbox reveals them) since the point is surfacing
+  what's still outstanding, not a full log. A single-select `FilterMode` chip row
+  (`all` / `homework` / `sport`, via `matchesFilter()`) additionally narrows to
+  `category === 'school' && homeworkDue` or `category === 'sport'` respectively, applied
+  after the done/not-done filter. A School occurrence with `homeworkDue` gets
+  an inline "HW due"/"HW done" tag so homework-that-needs-doing is visible without
+  opening anything, which is what motivated the page in the first place. The checkbox
+  reuses `setTaskStatus` directly (same as `DayView`), with a rollback-on-failure
+  optimistic update rather than a full reload, since a reload here would also need to
+  re-apply the "hide done" filter.
 - **Notes** (`DayView.tsx#NoteField`, shared between the expanded timeline popover and the
   "No time set" fallback list): a plain per-occurrence textarea, not tied to any one
   category. Keeps its own local `draft` state seeded from `occ.note` and re-synced via a

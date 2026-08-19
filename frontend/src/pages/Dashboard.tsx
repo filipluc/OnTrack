@@ -221,6 +221,9 @@ export default function Dashboard() {
       </header>
 
       <div className="secondary-nav">
+        <Link to="/agenda" className="secondary">
+          ✅ Agenda
+        </Link>
         <Link to="/reports" className="secondary">
           📊 Reports
         </Link>

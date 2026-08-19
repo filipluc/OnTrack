@@ -4,6 +4,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import Reports from "./pages/Reports";
+import Agenda from "./pages/Agenda";
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const { user } = useAuth();
@@ -30,6 +31,14 @@ export default function App() {
         element={
           <RequireAuth>
             <Reports />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/agenda"
+        element={
+          <RequireAuth>
+            <Agenda />
           </RequireAuth>
         }
       />
