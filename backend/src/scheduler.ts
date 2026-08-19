@@ -80,7 +80,15 @@ async function tick() {
     }
 
     if (minutesOfDay >= toMinutes(homeworkCheckTime)) {
-      const dueNotDone = occurrences.filter((occ) => occ.category === "school" && occ.homeworkDue && !occ.homeworkDone);
+      // School homework uses the homeworkDue/homeworkDone flags (see nextOccurrenceOfSubject);
+      // Study tasks (extra practice, reading, etc.) never get that flag set -- they're tracked
+      // with the plain done/not_done status like any other task, so "still outstanding today"
+      // for them just means not done yet.
+      const dueNotDone = occurrences.filter(
+        (occ) =>
+          (occ.category === "school" && occ.homeworkDue && !occ.homeworkDone) ||
+          (occ.category === "study" && occ.status !== "done")
+      );
       // Only claimed once we're actually about to send -- if nothing's due yet, the slot stays
       // open so a class marked "homework given" later in the evening still gets picked up on
       // a later tick, not just at exactly the configured check time.

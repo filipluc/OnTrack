@@ -53,6 +53,8 @@ don't let it drift out of sync with reality.
 | 2026-08-19 | Fixed a reported bug: the same push notification arrived 3 times on both a phone and a PC. Root cause: the scheduler's "already sent" tracking was an in-memory `Set`, cleared on every backend restart — and this app gets redeployed/restarted often (every `git push`, plus local `tsx watch` reloads during development), so each restart while a reminder/homework condition was still true re-sent it. Replaced with a `sent_notifications` table (`user_id, kind, ref_key, date`, unique constraint) — a restart no longer forgets what was already sent, since the state lives in Postgres instead of process memory. |
 | 2026-08-19 | Fixed a reported bug: the homework-check-time picker (`<input type="time">`) couldn't have AM/PM set on at least one phone — its 12h-vs-24h rendering depends on the device's own locale/browser, not the app. Replaced with two plain hour/minute `<select>`s, always 24h, fully under the app's own control. |
 
+| 2026-08-19 | Broadened "homework due" (both the evening push notification and Agenda's 📖 Homework filter) to also count Study tasks, on top of the existing School `homeworkDue`-flagged ones — not a replacement, both are counted. Study tasks never get the School-specific `homeworkDue`/`homeworkDone` flags (that pair only exists via the "Homework given?" → next-occurrence mechanism), so for Study, "still outstanding" just means the occurrence's own status isn't `done` yet. |
+
 **Project location:** `C:\Github\OnTrack` — full architecture, data model, API
 reference, and env var docs live in [`docs/TECHNICAL.md`](docs/TECHNICAL.md).
 

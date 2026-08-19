@@ -94,8 +94,9 @@ parent can reset it.
     task above) — nothing else pings you, so turning on notifications alone doesn't
     suddenly notify you about everything.
   - A **homework check** once a day (default **18:00**) if anything is still due and not
-    marked done — change the time in the box that appears next to the bell once
-    notifications are on.
+    marked done — School homework you've flagged as due, plus any not-yet-done Study task
+    (extra practice, reading, etc.). Change the time in the box that appears next to the
+    bell once notifications are on.
   Notifications are per-device, not per-account — turn them on separately on your phone
   and your child's. **On iPhone**, Safari only allows this for a site added to the home
   screen (Share → Add to Home Screen) — opened as an ordinary browser tab, the 🔔 button
@@ -140,9 +141,10 @@ day at a time on the main schedule.
   with nothing to show are skipped entirely.
 - **By default, only shows what's not done yet** — the point is seeing what's left. Tick
   "Show done too" to also see everything you've already checked off.
-- **All / 📖 Homework / ⚽ Sport buttons** narrow the list down: Homework shows just School
-  tasks with homework due that week (the quick way to answer "what homework do I have this
-  week?"); Sport shows every sport task. All shows everything, no filtering.
+- **All / 📖 Homework / ⚽ Sport buttons** narrow the list down: Homework shows School
+  tasks with homework due that week *and* any not-yet-done Study task (extra practice,
+  reading, etc. — the quick way to answer "what homework do I have this week?"); Sport
+  shows every sport task. All shows everything, no filtering.
 - You can check items off right from this list, same as on the main schedule.
 - A School task with homework due shows an **"HW due"** (or **"HW done"**) tag inline, so
   you can spot upcoming homework without opening each day.

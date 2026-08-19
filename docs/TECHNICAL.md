@@ -191,11 +191,15 @@ checks two independent things:
   (default off) — the ask was explicitly "not all tasks," so most tasks stay silent unless
   someone turns a reminder on for that one.
 - **Homework due**: once local time passes the user's own `homework_check_time` (default
-  `18:00`, editable via `NotificationsToggle`), if any School occurrence today has
-  `homeworkDue && !homeworkDone`, sends one push listing them. Deliberately left unmarked
-  (so it keeps checking) if nothing is due yet at that time, in case homework gets marked
-  assigned later in the evening — only marked "notified for today" once a push actually
-  goes out, not just once the clock passes the check time.
+  `18:00`, editable via `NotificationsToggle`), sends one push if anything counts as
+  outstanding: a School occurrence today with `homeworkDue && !homeworkDone`, **or** a
+  Study occurrence today that isn't `done`. Study tasks (extra practice, reading, etc.)
+  never get the `homeworkDue`/`homeworkDone` flags — that pair is specific to the School
+  "next occurrence of subject" mechanism — so for Study, "still outstanding" is just its
+  ordinary completion status. Deliberately left unmarked (so it keeps checking) if nothing
+  is due yet at that time, in case homework gets marked assigned later in the evening —
+  only marked "notified for today" once a push actually goes out, not just once the clock
+  passes the check time.
 
 Both checks de-dupe via a `sent_notifications` table (`tryClaimNotification()`), one row
 per `(user_id, kind, ref_key, date)` with a unique constraint doing the actual dedup —
@@ -442,8 +446,10 @@ never another user's.
   occurrences (a "Show done too" checkbox reveals them) since the point is surfacing
   what's still outstanding, not a full log. A single-select `FilterMode` chip row
   (`all` / `homework` / `sport`, via `matchesFilter()`) additionally narrows to
-  `category === 'school' && homeworkDue` or `category === 'sport'` respectively, applied
-  after the done/not-done filter. A School occurrence with `homeworkDue` gets
+  `category === 'sport'` for Sport, or — for Homework — `category === 'school' &&
+  homeworkDue` **or** `category === 'study'` (Study tasks have no `homeworkDue` flag of
+  their own, same reasoning as the scheduler's homework-due push below), applied after the
+  done/not-done filter. A School occurrence with `homeworkDue` gets
   an inline "HW due"/"HW done" tag so homework-that-needs-doing is visible without
   opening anything, which is what motivated the page in the first place. The checkbox
   reuses `setTaskStatus` directly (same as `DayView`), with a rollback-on-failure
