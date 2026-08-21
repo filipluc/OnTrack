@@ -85,6 +85,9 @@ function MatchItem({ m, team, played }: { m: EliteU13Match; team: string; played
 
   return (
     <li className={`elite-match ${played ? "played" : ""}`}>
+      <div className="elite-match-meta">
+        Round {m.round} · {formatMatchDate(m.date)}
+      </div>
       <div className="elite-match-teams">
         <span className={m.home === team ? "elite-team-us" : ""}>{m.home}</span>
         {played ? (
@@ -96,10 +99,12 @@ function MatchItem({ m, team, played }: { m: EliteU13Match; team: string; played
         )}
         <span className={m.away === team ? "elite-team-us" : ""}>{m.away}</span>
       </div>
-      <div className="elite-match-meta">
-        Round {m.round} · {formatMatchDate(m.date)}
-        {!played && m.stadium && ` · ${m.stadium}${m.town ? ` (${m.town})` : ""}`}
-      </div>
+      {!played && m.stadium && (
+        <div className="elite-match-venue">
+          {m.stadium}
+          {m.town ? ` (${m.town})` : ""}
+        </div>
+      )}
       <button type="button" className="elite-lineups-toggle" onClick={() => setOpen((o) => !o)}>
         {open ? "Hide lineups" : "Show lineups"}
       </button>

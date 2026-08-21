@@ -1111,6 +1111,7 @@ a.secondary {
   gap: 0.5rem;
   font-weight: 600;
   flex-wrap: wrap;
+  margin-top: 0.3rem;
 }
 
 .elite-team-us {
@@ -1130,6 +1131,12 @@ a.secondary {
 }
 
 .elite-match-meta {
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.elite-match-venue {
   color: var(--muted);
   font-size: 0.8rem;
   margin-top: 0.2rem;
