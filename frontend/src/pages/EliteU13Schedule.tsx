@@ -136,8 +136,8 @@ export default function EliteU13Schedule() {
 
   return (
     <div className="dashboard">
-      <Link to="/more" className="secondary">
-        ‹ Back
+      <Link to="/more" className="back-link">
+        ← Back
       </Link>
 
       <header className="dashboard-header">

@@ -218,6 +218,21 @@ a.secondary {
   padding: 1.25rem 1rem 6rem;
 }
 
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  margin-bottom: 0.9rem;
+}
+
+.back-link:hover {
+  color: var(--primary);
+}
+
 .dashboard-header {
   display: flex;
   align-items: center;
