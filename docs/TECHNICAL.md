@@ -254,6 +254,8 @@ All routes except `/api/auth/*` require `Authorization: Bearer <jwt>`.
 | POST | `/api/push/unsubscribe` | `{endpoint}` | Deletes one of the caller's own subscriptions. |
 | GET | `/api/push/settings` | — | Returns `{homeworkCheckTime}` (`HH:MM`) for the caller, default `"18:00"`. |
 | PUT | `/api/push/settings` | `{homeworkCheckTime}` | Sets the caller's homework-check time. Must be `HH:MM` (400 otherwise). |
+| GET | `/api/elite-u13/schedule` | — | Returns `{team, matches}` — Workit Sports' Liga Elitelor U13 Seria 1 schedule, live-fetched (server-cached 1h) from hailafotbal.ro. `502` if that fetch fails. See "Third-party data" below. |
+| GET | `/api/elite-u13/match/:matchId/sheet` | — | Returns `{home, away}` — that match's starters/reserves/staff (no photos), live-fetched (cached indefinitely per match) from hailafotbal.ro. `502` if unavailable (not yet published, ~75min before kickoff) or the fetch fails. |
 
 ### Access control
 
@@ -278,10 +280,12 @@ never another user's.
   `Dashboard` owns the rest (selected child, selected date, the current week's
   occurrences) as local state.
 - **Routing:** `/login`, `/signup`, `/` (Dashboard, behind `RequireAuth`), `/reports`
-  (Reports, behind `RequireAuth`), `/agenda` (Agenda, behind `RequireAuth`). All three
-  authed pages render a shared `TabBar` (`components/TabBar.tsx`, `NavLink`s to
-  `/`/`/agenda`/`/reports`) fixed to the bottom of the screen — this is the primary way
-  to move between them, replacing an earlier top-of-page link row.
+  (Reports, behind `RequireAuth`), `/agenda` (Agenda, behind `RequireAuth`), `/more` (More,
+  behind `RequireAuth`), `/more/elite-u13` (EliteU13Schedule, behind `RequireAuth`). The
+  four main pages render a shared `TabBar` (`components/TabBar.tsx`, `NavLink`s to
+  `/`/`/agenda`/`/reports`/`/more`) fixed to the bottom of the screen — this is the primary
+  way to move between them, replacing an earlier top-of-page link row. `/more/elite-u13` is
+  a sub-page reached from `/more`'s list, not its own tab.
 - **Header layout:** each page's title sits in a `.header-title-block` (title +, on
   Dashboard, the signed-in user's name as a small subtitle beneath it rather than a
   separate row) with utility icons (`ThemeToggle`, `NotificationsToggle`, Log out) on the
@@ -527,6 +531,58 @@ never another user's.
   two behaviors bespoke: `useEscapeKey` collapses it, and a `document`-level `click`
   listener (added only while `expanded`, checking `!blockRef.current.contains(e.target)`)
   collapses it on any click outside the block.
+- **More / Elite U13 Schedule** (`pages/More.tsx`, `pages/EliteU13Schedule.tsx`): `/more` is
+  a plain list of misc links (currently just one) rather than folding a one-off feature
+  into the main tabs; `/more/elite-u13` shows Workit Sports' full Liga Elitelor U13, Seria 1
+  schedule as two independently-collapsible sections, "Played" then "Upcoming" (both
+  collapsed by default), each match tagged with its round number, fetched live from the
+  backend, not stored in our own DB — see the backend section below for where that data
+  actually comes from. Each match has a "Show lineups" toggle that lazy-fetches per-match
+  rosters and staff (`getEliteU13MatchSheet`) only when expanded.
+
+## Third-party data: Elite U13 schedule (`backend/src/routes/eliteU13.ts`)
+
+hailafotbal.ro (the Romanian Football Federation's youth-league site, "Hai la Fotbal") has
+no public API — it's a client-side Angular app that calls a backing service,
+`api.datalake.frf.ro`, directly from the browser. This route reverse-engineers those same
+calls (found by inspecting the site's own network traffic while browsing to Workit Sports'
+series) to read the same public match data any visitor's browser already sees:
+- `POST /Auth/GetToken` with `{apiUser, apiPassword}` — a public read-only service account
+  embedded in hailafotbal.ro's own shipped JS bundle (not a private secret; every visitor's
+  browser uses this same login to load the site). Cached for 20 minutes.
+- `POST /HaiLaFotbal/GetCompetitionStageSeriesTourRounds` with `{}` — returns *every* round
+  across *all* competitions/series; filtered client-side (well, server-side here) down to
+  the ones matching our fixed `SERIES_ID`/`STAGE_ID`.
+- `POST /HaiLaFotbal/GetMatches` per round (`{SeasonId, CompetitionId, StageId, SeriesId,
+  TourRoundId}`) — run concurrently via `Promise.all`, not sequentially, since ~25+ rounds
+  awaited one at a time took over a minute; in parallel it's a few seconds. Each round's
+  `orderdisplay` field (the true sequential week number, e.g. 1–27 with gaps for bye weeks
+  since 9 teams is an odd number) is used as the shown "Round N" — **not** `tourNo`, which
+  is which circuit through all 8 opponents this is (1/2/3), an easy field to confuse since
+  both look like plausible "round numbers".
+- `POST /HaiLaFotbal/GetMatchSheets` with `{MatchId}` — per-match lineup sheets: each club's
+  starters, reserves, and staff/coaches. Unlike every other endpoint above, its response is
+  the raw object itself (no `{hasErrors, responseData}` wrapper), and it 500s with a
+  plain-text (non-JSON) body until ~75 minutes before kickoff — handled by checking
+  `res.ok` rather than parsing a JSON error shape. Responses are stripped of every `photo`
+  field before being returned to the frontend (`cleanClub`/`cleanPlayers`/`cleanStaff`) and
+  cached indefinitely per `matchId` (a played match's sheet doesn't change, and an
+  unavailable one just isn't cached until it succeeds). No individual goal-scorer data
+  exists anywhere in the FRF API — only aggregate team scores.
+
+`SEASON_ID`/`COMPETITION_ID`/`STAGE_ID`/`SERIES_ID` and the team name (`"Workit Sports"`)
+are hardcoded constants — there's no generic "look up any team" flow, and no way to derive
+these programmatically without the site's own filter UI. **If FRF starts a new season or
+reshuffles series, these will need updating by hand** (repeat the network-inspection
+process against the new `hailafotbal.ro` URL for that team). The whole schedule result
+(already filtered to Workit Sports' matches, sorted by date, played matches in the same
+ascending order as upcoming ones) is cached in memory for 1 hour
+(`GET /api/elite-u13/schedule`, behind normal `requireAuth` — no special permission scoping
+needed, it's the same public data for every OnTrack user). A cold cache miss triggers a
+live fetch that can take several seconds; a `502` is returned if hailafotbal.ro is
+unreachable or its API shape has changed. Per-match lineups are a separate endpoint,
+`GET /api/elite-u13/match/:matchId/sheet`, fetched lazily by the frontend only when a match
+is expanded.
 
 ## Environment variables
 

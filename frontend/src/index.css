@@ -1022,6 +1022,173 @@ a.secondary {
   font-size: 1.15rem;
 }
 
+/* More / Elite U13 */
+
+.more-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.more-item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+  text-decoration: none;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.more-item-icon {
+  font-size: 1.3rem;
+}
+
+.more-item-label {
+  flex: 1;
+}
+
+.more-item-arrow {
+  color: var(--muted);
+  font-size: 1.2rem;
+}
+
+.elite-section {
+  margin-bottom: 1.2rem;
+}
+
+.elite-section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0.3rem 0;
+  margin-bottom: 0.4rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  text-align: left;
+}
+
+.elite-section-caret {
+  display: inline-block;
+  transition: transform 0.15s ease;
+  color: var(--muted);
+}
+
+.elite-section-caret.open {
+  transform: rotate(90deg);
+}
+
+.elite-match-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.elite-match {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+}
+
+.elite-match.played {
+  opacity: 0.75;
+}
+
+.elite-match-teams {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  flex-wrap: wrap;
+}
+
+.elite-team-us {
+  color: var(--primary);
+}
+
+.elite-vs,
+.elite-score {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.85rem;
+}
+
+.elite-score {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.elite-match-meta {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-top: 0.2rem;
+}
+
+.elite-lineups-toggle {
+  margin-top: 0.5rem;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.elite-sheet {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.6rem;
+}
+
+.elite-sheet-club h4 {
+  margin: 0 0 0.4rem;
+  font-size: 0.9rem;
+}
+
+.elite-sheet-group {
+  margin-bottom: 0.5rem;
+}
+
+.elite-sheet-group-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  margin-bottom: 0.2rem;
+}
+
+.elite-sheet-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.elite-sheet-role {
+  color: var(--muted);
+  font-size: 0.8em;
+}
+
 /* Modal */
 .modal-backdrop {
   position: fixed;

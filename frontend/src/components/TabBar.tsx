@@ -4,6 +4,7 @@ const TABS = [
   { to: "/", icon: "🗓️", label: "Schedule", end: true },
   { to: "/agenda", icon: "✅", label: "Agenda", end: false },
   { to: "/reports", icon: "📊", label: "Reports", end: false },
+  { to: "/more", icon: "🧩", label: "More", end: false },
 ];
 
 export default function TabBar() {

@@ -137,9 +137,21 @@ Tap the **📊 Reports** tab to see totals instead of a calendar.
 
 ## Getting around
 
-Three tabs sit at the bottom of the screen: **🗓️ Schedule** (your day-by-day calendar,
-where you land after signing in), **✅ Agenda**, and **📊 Reports**. Tap any of them to
-switch — the one you're on is highlighted.
+Four tabs sit at the bottom of the screen: **🗓️ Schedule** (your day-by-day calendar,
+where you land after signing in), **✅ Agenda**, **📊 Reports**, and **🧩 More**. Tap any of
+them to switch — the one you're on is highlighted.
+
+## More
+
+A plain list of extra, one-off things that don't fit the main tabs. Right now it has one
+entry:
+
+- **⚽ Elite U13 Schedule** — Workit Sports' full Liga Elitelor U13 (Seria 1) schedule,
+  pulled live from hailafotbal.ro each time you open it (not something you add or edit
+  yourself). "Played" and "Upcoming" are separate, collapsible sections (both start
+  collapsed), each match showing its round number. Tap "Show lineups" on any match to see
+  both teams' starters, reserves, and coaching staff — available for played matches, and
+  for upcoming ones starting about 75 minutes before kickoff.
 
 ## Agenda
 

@@ -5,6 +5,8 @@ import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import Reports from "./pages/Reports";
 import Agenda from "./pages/Agenda";
+import More from "./pages/More";
+import EliteU13Schedule from "./pages/EliteU13Schedule";
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const { user } = useAuth();
@@ -39,6 +41,22 @@ export default function App() {
         element={
           <RequireAuth>
             <Agenda />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/more"
+        element={
+          <RequireAuth>
+            <More />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/more/elite-u13"
+        element={
+          <RequireAuth>
+            <EliteU13Schedule />
           </RequireAuth>
         }
       />

@@ -5,6 +5,7 @@ import { authRouter } from "./routes/auth.js";
 import { childrenRouter } from "./routes/children.js";
 import { tasksRouter } from "./routes/tasks.js";
 import { pushRouter } from "./routes/push.js";
+import { eliteU13Router } from "./routes/eliteU13.js";
 import { initSchema } from "./db.js";
 import { startScheduler } from "./scheduler.js";
 
@@ -22,6 +23,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/children", childrenRouter);
 app.use("/api/tasks", tasksRouter);
 app.use("/api/push", pushRouter);
+app.use("/api/elite-u13", eliteU13Router);
 
 initSchema()
   .then(() => {

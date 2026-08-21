@@ -251,3 +251,47 @@ export function setNotificationSettings(homeworkCheckTime: string) {
     body: JSON.stringify({ homeworkCheckTime }),
   });
 }
+
+export interface EliteU13Match {
+  matchId: string;
+  round: number;
+  date: string;
+  home: string;
+  away: string;
+  homeGoals: number | null;
+  awayGoals: number | null;
+  played: boolean;
+  stadium: string | null;
+  town: string | null;
+}
+
+export interface MatchSheetPlayer {
+  name: string;
+  shirtNo: number;
+  captain: boolean;
+  position: string;
+}
+export interface MatchSheetStaff {
+  name: string;
+  role: string;
+}
+export interface MatchSheetClub {
+  name: string;
+  starters: MatchSheetPlayer[];
+  reserves: MatchSheetPlayer[];
+  staff: MatchSheetStaff[];
+}
+export interface EliteU13MatchSheet {
+  home: MatchSheetClub;
+  away: MatchSheetClub;
+}
+
+/** Live-fetched (with a server-side cache) from hailafotbal.ro — not stored in our own DB. */
+export function getEliteU13Schedule() {
+  return request<{ team: string; matches: EliteU13Match[] }>("/elite-u13/schedule");
+}
+
+/** Lineups/staff for one match. Only available from ~75 minutes before kickoff onward. */
+export function getEliteU13MatchSheet(matchId: string) {
+  return request<EliteU13MatchSheet>(`/elite-u13/match/${matchId}/sheet`);
+}
