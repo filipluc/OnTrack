@@ -532,13 +532,39 @@ never another user's.
   listener (added only while `expanded`, checking `!blockRef.current.contains(e.target)`)
   collapses it on any click outside the block.
 - **More / Elite U13 Schedule** (`pages/More.tsx`, `pages/EliteU13Schedule.tsx`): `/more` is
-  a plain list of misc links (currently just one) rather than folding a one-off feature
-  into the main tabs; `/more/elite-u13` shows Workit Sports' full Liga Elitelor U13, Seria 1
-  schedule as two independently-collapsible sections, "Played" then "Upcoming" (both
-  collapsed by default), each match tagged with its round number, fetched live from the
-  backend, not stored in our own DB — see the backend section below for where that data
-  actually comes from. Each match has a "Show lineups" toggle that lazy-fetches per-match
-  rosters and staff (`getEliteU13MatchSheet`) only when expanded.
+  a plain list of misc links rather than folding one-off features into the main tabs;
+  `/more/elite-u13` shows Workit Sports' full Liga Elitelor U13, Seria 1 schedule as two
+  independently-collapsible sections, "Played" then "Upcoming" (both collapsed by default),
+  each match tagged with its round number, fetched live from the backend, not stored in our
+  own DB — see the backend section below for where that data actually comes from. Each
+  match has a "Show lineups" toggle that lazy-fetches per-match rosters and staff
+  (`getEliteU13MatchSheet`) only when expanded.
+- **More / Cupa Stelele Viitorului 2026** (`pages/CupaSteleleViitorului.tsx` list page —
+  four entries, one per birth year; `pages/CupaYearSchedule.tsx` reads the `:year` route
+  param and picks which bracket's data/highlight rule to pass to
+  `components/CupaAgeGroupSchedule.tsx`, the shared rendering component; `data/cupaTypes.ts`
+  for the shared `CupaMatch`/`CupaDay` types, plus one data file per two-year bracket):
+  a second `/more` entry for a youth tournament's schedule, sourced from Google Sheets
+  (steleleviitorului.ro/livescore/) whose owner has downloading/copying disabled for
+  viewers — unlike Elite U13, there's no way to sync this live without either that
+  restriction being lifted (Publish-to-web or the viewer-download toggle) or scraping
+  Google's internal, undocumented rendering payload, which isn't something this app does.
+  Instead each bracket's schedule is a plain data file (`CUPA_2014_2015_DAYS` /
+  `CUPA_2016_2017_DAYS`, each with its own `SNAPSHOT_DATE`) read from the sheet by hand and
+  committed to the repo — update the relevant file (and its date) whenever that bracket's
+  schedule needs refreshing. Each match carries a single-year `group` (e.g. `"2015-B"`,
+  `"2016 · SF1"`) — `CupaAgeGroupSchedule` filters both the day sections and the pinned
+  summary down to just the requested year via `group.startsWith(ageGroup)`, so a "2014" or
+  "2017" page never shows the other year's fixtures even though both run on the same days.
+  Rendered with the same day-section/match-card pattern as Elite U13 for visual consistency,
+  minus anything live-specific (no lineups, no played/upcoming split, since the sheet
+  doesn't carry scores). Each page pins a "⭐ [team]'s matches" summary above the day
+  sections for whichever club the family follows, via an `isHighlightTeam` predicate passed
+  in from `CupaYearSchedule` (`HIGHLIGHT_TEAM` exact-match for 2014-2015; `HIGHLIGHT_TEAM_PREFIX`
+  for 2016-2017, since that bracket fields two same-club squads per age group — "Verde"/
+  "Negru" — so matching by name prefix catches both without hardcoding two names). Match
+  cards also show a `field` badge when the source data lists one, since 2016-2017 runs
+  several matches in parallel across different pitches at the same time.
 
 ## Third-party data: Elite U13 schedule (`backend/src/routes/eliteU13.ts`)
 

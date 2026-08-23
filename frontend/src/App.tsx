@@ -7,6 +7,8 @@ import Reports from "./pages/Reports";
 import Agenda from "./pages/Agenda";
 import More from "./pages/More";
 import EliteU13Schedule from "./pages/EliteU13Schedule";
+import CupaSteleleViitorului from "./pages/CupaSteleleViitorului";
+import CupaYearSchedule from "./pages/CupaYearSchedule";
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const { user } = useAuth();
@@ -57,6 +59,22 @@ export default function App() {
         element={
           <RequireAuth>
             <EliteU13Schedule />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/more/cupa-stelele-viitorului"
+        element={
+          <RequireAuth>
+            <CupaSteleleViitorului />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/more/cupa-stelele-viitorului/:year"
+        element={
+          <RequireAuth>
+            <CupaYearSchedule />
           </RequireAuth>
         }
       />

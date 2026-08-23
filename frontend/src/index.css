@@ -1157,6 +1157,35 @@ a.secondary {
   margin-top: 0.2rem;
 }
 
+.cupa-snapshot-note {
+  text-align: left;
+  padding: 0.6rem 0.8rem;
+  margin: 0 0 1rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.8rem;
+}
+
+.cupa-pinned {
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  border-radius: 12px;
+  padding: 0.7rem 0.8rem 0.2rem;
+}
+
+.cupa-pinned-heading {
+  margin-bottom: 0.5rem;
+}
+
+.cupa-pinned .elite-match {
+  background: var(--bg);
+}
+
+.cupa-highlight-team {
+  font-weight: 700;
+}
+
 .elite-lineups-toggle {
   margin-top: 0.5rem;
   background: none;

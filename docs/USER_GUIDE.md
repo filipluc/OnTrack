@@ -143,8 +143,7 @@ them to switch — the one you're on is highlighted.
 
 ## More
 
-A plain list of extra, one-off things that don't fit the main tabs. Right now it has one
-entry:
+A plain list of extra, one-off things that don't fit the main tabs:
 
 - **⚽ Elite U13 Schedule** — Workit Sports' full Liga Elitelor U13 (Seria 1) schedule,
   pulled live from hailafotbal.ro each time you open it (not something you add or edit
@@ -152,6 +151,12 @@ entry:
   collapsed), each match showing its round number. Tap "Show lineups" on any match to see
   both teams' starters, reserves, and coaching staff — available for played matches, and
   for upcoming ones starting about 75 minutes before kickoff.
+- **🏆 Cupa Stelele Viitorului 2026** — a youth tournament schedule, one entry per birth
+  year (2014, 2015, 2016, 2017), each organized by day with a collapsible section per day
+  and a pinned "⭐ [team]'s matches" summary at the top for the club the family follows.
+  Unlike Elite U13, this one is *not* live — the source spreadsheet's owner has downloading
+  disabled, so it's a manual snapshot instead, dated at the top of each page. If it looks
+  out of date, just ask for a refresh.
 
 ## Agenda
 

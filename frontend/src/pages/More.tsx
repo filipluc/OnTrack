@@ -14,6 +14,11 @@ export default function More() {
           <span className="more-item-label">Elite U13 Schedule</span>
           <span className="more-item-arrow">›</span>
         </Link>
+        <Link to="/more/cupa-stelele-viitorului" className="more-item">
+          <span className="more-item-icon">🏆</span>
+          <span className="more-item-label">Cupa Stelele Viitorului 2026</span>
+          <span className="more-item-arrow">›</span>
+        </Link>
       </div>
 
       <TabBar />
