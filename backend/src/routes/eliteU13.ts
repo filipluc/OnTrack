@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../auth.js";
-import { pool } from "../db.js";
+import { addMinutes, syncAlbertCalendar } from "../albertCalendar.js";
 
 /**
  * hailafotbal.ro (the Romanian Football Federation's youth-league site) is a client-side
@@ -147,65 +147,22 @@ async function frfPost<T>(path: string, body: unknown): Promise<T> {
 // covering two ~25-minute U13 halves, the break, and warm-up either side.
 const MATCH_DURATION_MINUTES = 90;
 
-function addMinutes(time: string, minutes: number): string {
-  const [h, m] = time.split(":").map(Number);
-  const total = h * 60 + m + minutes;
-  return `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
-}
-
 function matchTaskTitle(match: EliteU13Match): string {
   const isHome = match.home === TEAM_NAME;
   const opponent = isHome ? match.away : match.home;
   return `⚽ vs ${opponent} (${isHome ? "home" : "away"})`;
 }
 
-// Looked up by name rather than a hardcoded id, so this quietly no-ops (instead of crashing
-// the schedule fetch) on a fresh/test DB that has no such user.
-let albertUserId: number | null | undefined;
-async function getAlbertUserId(): Promise<number | null> {
-  if (albertUserId !== undefined) return albertUserId;
-  const result = await pool.query<{ id: number }>(
-    "SELECT id FROM users WHERE role = 'child' AND LOWER(name) = 'albert' LIMIT 1"
-  );
-  albertUserId = result.rows[0]?.id ?? null;
-  return albertUserId;
-}
-
-/**
- * Mirrors each of Albert's matches into his own calendar as a one-off "sport" task, so his
- * games show up in Schedule/Agenda alongside everything else, not just under More. Matched
- * on (owner, category, date, title) to update the kickoff time in place on re-sync rather
- * than piling up duplicates; never deletes, so a postponed/removed fixture leaves its task
- * behind for a parent to clean up by hand.
- */
-async function syncAlbertCalendar(matches: EliteU13Match[]): Promise<void> {
-  const albertId = await getAlbertUserId();
-  if (!albertId) return;
-
-  for (const m of matches) {
-    const date = m.date.slice(0, 10);
+function toAlbertCalendarMatches(matches: EliteU13Match[]) {
+  return matches.map((m) => {
     const startTime = m.date.slice(11, 16);
-    const endTime = addMinutes(startTime, MATCH_DURATION_MINUTES);
-    const title = matchTaskTitle(m);
-
-    const existing = await pool.query<{ id: number }>(
-      "SELECT id FROM tasks WHERE owner_id = $1 AND category = 'sport' AND date = $2 AND title = $3",
-      [albertId, date, title]
-    );
-    if (existing.rows[0]) {
-      await pool.query("UPDATE tasks SET start_time = $1, end_time = $2 WHERE id = $3", [
-        startTime,
-        endTime,
-        existing.rows[0].id,
-      ]);
-    } else {
-      await pool.query(
-        `INSERT INTO tasks (owner_id, title, category, recurrence, date, start_time, end_time, created_by)
-         VALUES ($1, $2, 'sport', 'none', $3, $4, $5, $1)`,
-        [albertId, title, date, startTime, endTime]
-      );
-    }
-  }
+    return {
+      date: m.date.slice(0, 10),
+      startTime,
+      endTime: addMinutes(startTime, MATCH_DURATION_MINUTES),
+      title: matchTaskTitle(m),
+    };
+  });
 }
 
 let cachedSchedule: { data: EliteU13Match[]; fetchedAt: number } | null = null;
@@ -262,7 +219,7 @@ async function fetchEliteU13Schedule(): Promise<EliteU13Match[]> {
   matches.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   try {
-    await syncAlbertCalendar(matches);
+    await syncAlbertCalendar(toAlbertCalendarMatches(matches));
   } catch (err) {
     console.error("Failed to sync Elite U13 matches into Albert's calendar", err);
   }

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../auth.js";
+import { addMinutes, syncAlbertCalendar } from "../albertCalendar.js";
 
 /**
  * Reads the Cupa Stelele Viitorului schedule straight from the organizer's own Google Sheets
@@ -46,6 +47,16 @@ const TWIN_BLOCK: BlockLayout[] = [
 // endpoint discards) -- these are matched positionally to each recurring "GRUPA" header
 // row block, in order. Update once per tournament edition, not per score change.
 const DAY_LABELS = ["Friday, Aug 28 — Group stage", "Saturday, Aug 29 — Group stage", "Sunday, Aug 30 — Knockout stage"];
+// Same days, as actual calendar dates (positionally matching DAY_LABELS) -- needed to give
+// Albert's synced calendar tasks a real date, since the label above is display text only.
+const DAY_DATES = ["2026-08-28", "2026-08-29", "2026-08-30"];
+
+// Albert plays in the 2015 bracket of the 2014-2015 doc, on the single "Coerver România" squad.
+const ALBERT_CUPA_SHEET = "2014-2015";
+const ALBERT_CUPA_YEAR = "2015";
+const ALBERT_CUPA_TEAM = "Coerver România";
+// Observed ~50-minute gap between consecutive kickoff times in this doc's schedule.
+const CUPA_MATCH_DURATION_MINUTES = 50;
 
 const SHEETS: Record<string, SheetConfig> = {
   "2014-2015": {
@@ -174,6 +185,26 @@ function extractMatch(cells: (GvizCell | null)[], block: BlockLayout): CupaMatch
   };
 }
 
+/** Picks out Albert's own Coerver matches from the 2014-2015 sheet's days and gives them real dates. */
+function albertCupaCalendarMatches(days: CupaDay[]) {
+  return days.flatMap((day, i) => {
+    const date = DAY_DATES[i];
+    if (!date) return []; // more day-blocks than known tournament dates -- skip rather than guess
+    return day.matches
+      .filter((m) => m.group.startsWith(ALBERT_CUPA_YEAR) && (m.home === ALBERT_CUPA_TEAM || m.away === ALBERT_CUPA_TEAM))
+      .map((m) => {
+        const opponent = m.home === ALBERT_CUPA_TEAM ? m.away : m.home;
+        const startTime = addMinutes(m.time, 0); // normalizes to zero-padded "HH:MM"
+        return {
+          date,
+          startTime,
+          endTime: addMinutes(startTime, CUPA_MATCH_DURATION_MINUTES),
+          title: `⚽ Cupa vs ${opponent}`,
+        };
+      });
+  });
+}
+
 function parseSheet(rows: GvizRow[], config: SheetConfig): CupaDay[] {
   const days: CupaDay[] = [];
   let current: CupaDay | null = null;
@@ -273,13 +304,21 @@ async function fetchCupaSchedule(): Promise<CupaScheduleResponse> {
       Promise.all(Object.entries(STANDINGS).map(async ([year, config]) => [year, await fetchStandings(config)] as const)),
     ]);
 
+    const sheets: Record<string, CupaDay[]> = Object.fromEntries(scheduleEntries);
     const data: CupaScheduleResponse = {
       updatedAt: new Date().toISOString(),
-      sheets: Object.fromEntries(scheduleEntries),
+      sheets,
       standings: Object.fromEntries(standingsEntries),
       stale: false,
     };
     cachedSchedule = { data, fetchedAt: Date.now() };
+
+    try {
+      await syncAlbertCalendar(albertCupaCalendarMatches(sheets[ALBERT_CUPA_SHEET] ?? []));
+    } catch (err) {
+      console.error("Failed to sync Cupa matches into Albert's calendar", err);
+    }
+
     return data;
   } catch (err) {
     // Google's endpoint is unreachable, the organizer's sheet moved, etc. -- if we have any
