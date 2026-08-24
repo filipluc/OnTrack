@@ -295,3 +295,41 @@ export function getEliteU13Schedule() {
 export function getEliteU13MatchSheet(matchId: string) {
   return request<EliteU13MatchSheet>(`/elite-u13/match/${matchId}/sheet`);
 }
+
+export interface CupaMatch {
+  time: string;
+  field?: string;
+  group: string;
+  home: string;
+  away: string;
+  score?: string;
+}
+export interface CupaDay {
+  label: string;
+  matches: CupaMatch[];
+}
+export interface CupaStandingsRow {
+  rank: number;
+  team: string;
+  played: number;
+  points: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  diff: number;
+}
+export interface CupaStandingsGroup {
+  group: string;
+  rows: CupaStandingsRow[];
+}
+export interface CupaScheduleResponse {
+  updatedAt: string;
+  sheets: Record<string, CupaDay[]>;
+  standings: Record<string, CupaStandingsGroup[]>;
+  /** True if the live fetch just failed and this is the last known good data instead. */
+  stale: boolean;
+}
+
+/** Live-fetched (with a server-side cache) straight from the organizer's Google Sheets. */
+export function getCupaSchedule() {
+  return request<CupaScheduleResponse>("/cupa/schedule");
+}
