@@ -22,7 +22,8 @@ interface BlockLayout {
   field: number | null;
   group: number;
   team1: number;
-  score: number;
+  homeScore: number;
+  awayScore: number;
   team2: number;
   width: number;
 }
@@ -34,13 +35,24 @@ interface SheetConfig {
   blocks: BlockLayout[];
 }
 
-// 2014-2015 doc: one match per row, single field (whole age group plays on "Teren 4").
-const SINGLE_BLOCK: BlockLayout = { offset: 0, time: 0, field: null, group: 1, team1: 3, score: 4, team2: 6, width: 7 };
+// 2014-2015 doc: one match per row, single field (whole age group plays on "Teren 4"). The
+// "SCOR" header spans two adjacent cells (home goals, then away goals), not one combined cell.
+const SINGLE_BLOCK: BlockLayout = {
+  offset: 0,
+  time: 0,
+  field: null,
+  group: 1,
+  team1: 3,
+  homeScore: 4,
+  awayScore: 5,
+  team2: 6,
+  width: 7,
+};
 // 2016-2017 doc: Coerver fields two squads (Verde/Negru), and the sheet runs two courts in
 // parallel per row -- a second identically-shaped block starting 10 columns over.
 const TWIN_BLOCK: BlockLayout[] = [
-  { offset: 0, time: 0, field: 1, group: 2, team1: 4, score: 5, team2: 7, width: 10 },
-  { offset: 10, time: 0, field: 1, group: 2, team1: 4, score: 5, team2: 7, width: 10 },
+  { offset: 0, time: 0, field: 1, group: 2, team1: 4, homeScore: 5, awayScore: 6, team2: 7, width: 10 },
+  { offset: 10, time: 0, field: 1, group: 2, team1: 4, homeScore: 5, awayScore: 6, team2: 7, width: 10 },
 ];
 
 // Day/date text isn't present as row data in either doc (only as a one-off banner Google's
@@ -173,14 +185,17 @@ function extractMatch(cells: (GvizCell | null)[], block: BlockLayout): CupaMatch
   const team2 = at(block.team2)?.v;
   if (!team1 && !team2) return null;
   const groupVal = at(block.group)?.v;
-  const scoreVal = at(block.score)?.v;
+  const homeGoals = at(block.homeScore)?.v;
+  const awayGoals = at(block.awayScore)?.v;
   const fieldVal = block.field != null ? at(block.field)?.v : null;
   return {
     time: timeStr,
     group: groupVal ? String(groupVal).trim() : "",
     home: normalizeTeamName(String(team1 ?? "")),
     away: normalizeTeamName(String(team2 ?? "")),
-    ...(scoreVal ? { score: String(scoreVal).trim() } : {}),
+    // Both cells start blank (null) and only get filled in once the match is played -- a
+    // legitimate 0 must still show, so this checks for presence, not truthiness.
+    ...(homeGoals != null && awayGoals != null ? { score: `${homeGoals} - ${awayGoals}` } : {}),
     ...(fieldVal ? { field: normalizeField(String(fieldVal)) } : {}),
   };
 }
