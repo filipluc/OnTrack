@@ -8,6 +8,12 @@ import { requireAuth } from "../auth.js";
  * "program" page lists every round's fixtures in one table (teams, round, date, a link to
  * that match's own page), and each match's own page additionally carries kickoff time and
  * venue once the federation sets them (both start as a placeholder "hh:mm" / blank).
+ *
+ * frf-ajf.ro sits behind Cloudflare, which 403s requests from Render's datacenter IPs outright
+ * (works fine from a residential IP, e.g. local dev) -- so fetches go through r.jina.ai, a free
+ * "read this URL" reader proxy, instead of hitting frf-ajf.ro directly. It fetches the page
+ * server-side from its own IPs and returns the content as Markdown rather than raw HTML, so the
+ * parsing below matches that Markdown shape, not frf-ajf.ro's actual markup.
  */
 const COMPETITION_URL = "https://www.frf-ajf.ro/iasi/competitii-fotbal/juniori-u12-2015-16853/program";
 const TEAM_NAME = "CS Workit Sports Iași";
@@ -15,7 +21,13 @@ const TEAM_NAME = "CS Workit Sports Iași";
 // round in a group with an odd number of teams -- not a real club, just "sits this round out".
 const BYE_TEAM = "stă";
 
-const FETCH_HEADERS = { "User-Agent": "Mozilla/5.0 (compatible; OnTrackApp/1.0)" };
+const READER_PROXY = "https://r.jina.ai/";
+
+async function fetchViaReader(url: string): Promise<string> {
+  const res = await fetch(`${READER_PROXY}${url}`);
+  if (!res.ok) throw new Error(`Reader proxy fetch failed for ${url}: ${res.status}`);
+  return res.text();
+}
 
 export interface FrfAjfMatch {
   round: number;
@@ -46,14 +58,16 @@ interface ScheduleRow {
   matchUrl: string;
 }
 
-// Matches one <tr> of the program table, e.g.:
-// <tr class="blueColored"><td><b>Home - Away</b></td><td>1</td><td>2026-09-19</td><td>-</td><td><a href='...'>Detalii</a></td></tr>
-const ROW_RE =
-  /<tr class="[^"]*"><td><b>([^<]*)<\/b><\/td><td>(\d+)<\/td><td>([^<]*)<\/td><td>[^<]*<\/td><td><a href='([^']+)'>Detalii<\/a><\/td><\/tr>/g;
+// Matches one row of the program table as the reader proxy renders it, e.g.:
+// **Home - Away**1 2026-09-19-[Detalii](https://www.frf-ajf.ro/iasi/meciuri/....html)
+// The bit between the date and "[Detalii](" is the score column ("-" until played, "X - Y"
+// once it is) -- skipped rather than captured, since match details are read from each match's
+// own page instead.
+const ROW_RE = /\*\*([^*]+)\*\*(\d+)\s+(\d{4}-\d{2}-\d{2})[^[]*\[Detalii\]\(([^)]+)\)/g;
 
-function parseProgramRows(html: string): ScheduleRow[] {
+function parseProgramRows(markdown: string): ScheduleRow[] {
   const rows: ScheduleRow[] = [];
-  for (const m of html.matchAll(ROW_RE)) {
+  for (const m of markdown.matchAll(ROW_RE)) {
     const [, teams, roundStr, date, matchUrl] = m;
     if (!teams.includes(TEAM_NAME)) continue;
     const sepIdx = teams.indexOf(" - ");
@@ -78,20 +92,23 @@ interface MatchDetails {
 }
 
 async function fetchMatchDetails(url: string): Promise<MatchDetails> {
-  const res = await fetch(url, { headers: FETCH_HEADERS });
-  if (!res.ok) throw new Error(`Match detail fetch failed for ${url}: ${res.status}`);
-  const html = await res.text();
+  const markdown = await fetchViaReader(url);
 
-  // Scope the search to the match-details block -- the page also lists every other match of
-  // the same round further down, which would otherwise be a source of false matches.
-  const start = html.indexOf('class="lt match-details"');
-  const block = start === -1 ? html : html.slice(start, start + 4000);
-
-  const scoreText = block.match(/<h2>([^<]*)<\/h2>/)?.[1]?.trim() ?? "";
+  // The match's own score is the only "## X - Y" heading on the page (the round's other
+  // fixtures, listed further down, render as plain text instead of headings).
+  const scoreText = markdown.match(/^## (.+)$/m)?.[1]?.trim() ?? "";
   const goals = scoreText.match(/(\d+)\s*-\s*(\d+)/);
 
-  const timeText = block.match(/glyphicon-time"[^>]*><\/span>\s*([^<]*?)<br/)?.[1]?.trim() ?? "";
-  const venueText = block.match(/glyphicon-map-marker"[^>]*><\/span>\s*([^<]*?)<br/)?.[1]?.trim() ?? "";
+  // Date/time/venue are the next three non-blank lines after the "Detalii meci" marker --
+  // date is discarded (we already have it, cleanly formatted, from the program page row).
+  const afterLabel = markdown.split("Detalii meci")[1] ?? "";
+  const [, timeLine, venueLine] = afterLabel
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const timeText = timeLine?.trim() ?? "";
+  const venueText = venueLine?.trim() ?? "";
 
   return {
     time: timeText && timeText.toLowerCase() !== "hh:mm" ? timeText : null,
@@ -112,9 +129,7 @@ async function fetchWorkitSchedule(): Promise<FrfAjfScheduleResponse> {
   if (cachedSchedule && Date.now() - cachedSchedule.fetchedAt < SCHEDULE_TTL_MS) return cachedSchedule.data;
 
   try {
-    const res = await fetch(COMPETITION_URL, { headers: FETCH_HEADERS });
-    if (!res.ok) throw new Error(`Program page fetch failed: ${res.status}`);
-    const rows = parseProgramRows(await res.text());
+    const rows = parseProgramRows(await fetchViaReader(COMPETITION_URL));
 
     const matches = await Promise.all(
       rows.map(async (row): Promise<FrfAjfMatch> => {
