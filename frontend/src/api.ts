@@ -333,3 +333,29 @@ export interface CupaScheduleResponse {
 export function getCupaSchedule() {
   return request<CupaScheduleResponse>("/cupa/schedule");
 }
+
+export interface FrfAjfMatch {
+  round: number;
+  date: string;
+  time: string | null;
+  venue: string | null;
+  home: string;
+  away: string;
+  homeGoals: number | null;
+  awayGoals: number | null;
+  played: boolean;
+  bye: boolean;
+  matchUrl: string;
+}
+export interface FrfAjfScheduleResponse {
+  team: string;
+  updatedAt: string;
+  matches: FrfAjfMatch[];
+  /** True if the live fetch just failed and this is the last known good data instead. */
+  stale: boolean;
+}
+
+/** Live-fetched (with a server-side cache) from frf-ajf.ro — not stored in our own DB. */
+export function getWorkitSchedule() {
+  return request<FrfAjfScheduleResponse>("/frf-ajf/schedule");
+}

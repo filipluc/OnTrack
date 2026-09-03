@@ -9,6 +9,7 @@ import More from "./pages/More";
 import EliteU13Schedule from "./pages/EliteU13Schedule";
 import CupaSteleleViitorului from "./pages/CupaSteleleViitorului";
 import CupaYearSchedule from "./pages/CupaYearSchedule";
+import WorkitSchedule from "./pages/WorkitSchedule";
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const { user } = useAuth();
@@ -59,6 +60,14 @@ export default function App() {
         element={
           <RequireAuth>
             <EliteU13Schedule />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/more/workit"
+        element={
+          <RequireAuth>
+            <WorkitSchedule />
           </RequireAuth>
         }
       />

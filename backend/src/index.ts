@@ -7,6 +7,7 @@ import { tasksRouter } from "./routes/tasks.js";
 import { pushRouter } from "./routes/push.js";
 import { eliteU13Router } from "./routes/eliteU13.js";
 import { cupaScheduleRouter } from "./routes/cupaSchedule.js";
+import { frfAjfScheduleRouter } from "./routes/frfAjfSchedule.js";
 import { initSchema } from "./db.js";
 import { startScheduler } from "./scheduler.js";
 
@@ -26,6 +27,7 @@ app.use("/api/tasks", tasksRouter);
 app.use("/api/push", pushRouter);
 app.use("/api/elite-u13", eliteU13Router);
 app.use("/api/cupa", cupaScheduleRouter);
+app.use("/api/frf-ajf", frfAjfScheduleRouter);
 
 initSchema()
   .then(() => {
