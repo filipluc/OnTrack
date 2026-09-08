@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../auth.js";
+import { addMinutes, syncAlbertCalendar } from "../albertCalendar.js";
 
 /**
  * Reads CS Workit Sports Iași's U12 (2015) county-league schedule straight from AJF Iași's
@@ -119,6 +120,26 @@ async function fetchMatchDetails(url: string): Promise<MatchDetails> {
   };
 }
 
+// U12 games run shorter than the 90-minute Elite U13 default -- used only to size the calendar
+// block, not for anything time-sensitive.
+const MATCH_DURATION_MINUTES = 60;
+
+/** Only matches with a real kickoff time can go on the calendar -- "hh:mm" placeholders (time: null) are skipped until AJF publishes one. */
+function toAlbertCalendarMatches(matches: FrfAjfMatch[]) {
+  return matches
+    .filter((m): m is FrfAjfMatch & { time: string } => !m.bye && m.time != null)
+    .map((m) => {
+      const isHome = m.home === TEAM_NAME;
+      const opponent = isHome ? m.away : m.home;
+      return {
+        date: m.date,
+        startTime: m.time,
+        endTime: addMinutes(m.time, MATCH_DURATION_MINUTES),
+        title: `⚽ vs ${opponent} (${isHome ? "home" : "away"})`,
+      };
+    });
+}
+
 // The competition schedule (and each match's time/venue) only changes when AJF Iași edits it
 // by hand -- this just bounds how often we scrape their site rather than reflecting any real
 // freshness requirement.
@@ -150,6 +171,13 @@ async function fetchWorkitSchedule(): Promise<FrfAjfScheduleResponse> {
     matches.sort((a, b) => a.round - b.round);
     const data: FrfAjfScheduleResponse = { team: TEAM_NAME, updatedAt: new Date().toISOString(), matches, stale: false };
     cachedSchedule = { data, fetchedAt: Date.now() };
+
+    try {
+      await syncAlbertCalendar(toAlbertCalendarMatches(matches));
+    } catch (err) {
+      console.error("Failed to sync Workit U12 matches into Albert's calendar", err);
+    }
+
     return data;
   } catch (err) {
     // frf-ajf.ro is unreachable, its markup changed, etc. -- if we have any previously

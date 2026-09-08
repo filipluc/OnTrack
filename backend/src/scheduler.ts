@@ -30,6 +30,12 @@ export function toMinutes(t: string): number {
   return h * 60 + m;
 }
 
+// A parent gets pushed about a child's evening sport fixtures automatically, regardless of that
+// task's own remindMinutesBefore (which stays unset for synced matches) -- these two are the
+// values the user asked for: only fixtures kicking off at/after 5pm, reminded 2 hours ahead.
+const EVENING_CUTOFF_MINUTES = 17 * 60;
+const SPORT_REMINDER_LEAD_MINUTES = 120;
+
 /**
  * Claims a (user, kind, refKey, date) notification slot, persisted in the DB rather than
  * in-memory -- an in-memory de-dupe set is wiped by every backend restart (a Render
@@ -97,6 +103,26 @@ async function tick() {
           title:
             dueNotDone.length === 1 ? "Homework still due today" : `${dueNotDone.length} homework items still due today`,
           body: dueNotDone.map((o) => o.title).join(", "),
+          url: "/agenda",
+        });
+      }
+    }
+
+    const children = await pool.query<{ id: number; name: string }>("SELECT id, name FROM users WHERE parent_id = $1", [
+      userId,
+    ]);
+    for (const child of children.rows) {
+      const childOccurrences = await getOccurrences(child.id, date, date);
+      for (const occ of childOccurrences) {
+        if (occ.category !== "sport" || occ.status === "done" || !occ.startTime) continue;
+        const startMinutes = toMinutes(occ.startTime);
+        if (startMinutes < EVENING_CUTOFF_MINUTES) continue;
+        const minutesUntilStart = startMinutes - minutesOfDay;
+        if (minutesUntilStart <= 0 || minutesUntilStart > SPORT_REMINDER_LEAD_MINUTES) continue;
+        if (!(await tryClaimNotification(userId, "child_sport", `${child.id}:${occ.id}`, occ.date))) continue;
+        await sendPushToUser(userId, {
+          title: `${child.name}: ${occ.title} starts soon`,
+          body: `Starts at ${occ.startTime}`,
           url: "/agenda",
         });
       }
