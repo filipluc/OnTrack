@@ -113,19 +113,22 @@ async function tick() {
     ]);
     for (const child of children.rows) {
       const childOccurrences = await getOccurrences(child.id, date, date);
-      for (const occ of childOccurrences) {
-        if (occ.category !== "sport" || occ.status === "done" || !occ.startTime) continue;
-        const startMinutes = toMinutes(occ.startTime);
-        if (startMinutes < EVENING_CUTOFF_MINUTES) continue;
-        const minutesUntilStart = startMinutes - minutesOfDay;
-        if (minutesUntilStart <= 0 || minutesUntilStart > SPORT_REMINDER_LEAD_MINUTES) continue;
-        if (!(await tryClaimNotification(userId, "child_sport", `${child.id}:${occ.id}`, occ.date))) continue;
-        await sendPushToUser(userId, {
-          title: `${child.name}: ${occ.title} starts soon`,
-          body: `Starts at ${occ.startTime}`,
-          url: "/agenda",
-        });
-      }
+      // Only the earliest evening sport event of the day gets a reminder -- a child with two
+      // fixtures after 5pm shouldn't page the parent twice, just once for the one coming up first.
+      const eveningSport = childOccurrences
+        .filter((occ) => occ.category === "sport" && occ.status !== "done" && occ.startTime)
+        .filter((occ) => toMinutes(occ.startTime!) >= EVENING_CUTOFF_MINUTES)
+        .sort((a, b) => toMinutes(a.startTime!) - toMinutes(b.startTime!))[0];
+
+      if (!eveningSport) continue;
+      const minutesUntilStart = toMinutes(eveningSport.startTime!) - minutesOfDay;
+      if (minutesUntilStart <= 0 || minutesUntilStart > SPORT_REMINDER_LEAD_MINUTES) continue;
+      if (!(await tryClaimNotification(userId, "child_sport", `${child.id}:${eveningSport.id}`, eveningSport.date))) continue;
+      await sendPushToUser(userId, {
+        title: `${child.name}: ${eveningSport.title} starts soon`,
+        body: `Starts at ${eveningSport.startTime}`,
+        url: "/agenda",
+      });
     }
   }
 }
