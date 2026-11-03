@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { AuthUser } from "./api";
 
 interface AuthContextValue {
@@ -30,6 +30,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setUser(null);
   }
+
+  // api.ts fires this after any request comes back 401 (expired/invalid/unverifiable token) --
+  // it already cleared localStorage itself, this just drops the in-memory state so RequireAuth
+  // re-renders and sends the user back to the login screen instead of leaving the app stuck.
+  useEffect(() => {
+    function handleUnauthorized() {
+      setToken(null);
+      setUser(null);
+    }
+    window.addEventListener("ontrack:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("ontrack:unauthorized", handleUnauthorized);
+  }, []);
 
   return <AuthContext.Provider value={{ user, token, login, logout }}>{children}</AuthContext.Provider>;
 }

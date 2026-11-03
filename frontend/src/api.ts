@@ -26,6 +26,14 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     },
   });
   if (!res.ok) {
+    if (res.status === 401) {
+      // The token is missing/expired/signed with a different secret (e.g. after a JWT_SECRET
+      // change on the server) -- there's no way to recover it, so clear it and let AuthProvider
+      // drop back to the login screen instead of leaving the app stuck showing failed requests.
+      localStorage.removeItem("ontrack_token");
+      localStorage.removeItem("ontrack_user");
+      window.dispatchEvent(new Event("ontrack:unauthorized"));
+    }
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `Request failed: ${res.status}`);
   }
