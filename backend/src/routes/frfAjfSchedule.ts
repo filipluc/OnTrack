@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../auth.js";
 import { addMinutes, syncAlbertCalendar } from "../albertCalendar.js";
+import { pool } from "../db.js";
 
 /**
  * Reads CS Workit Sports Iași's U12 (2015) county-league schedule straight from AJF Iași's
@@ -156,8 +157,45 @@ function toAlbertCalendarMatches(matches: FrfAjfMatch[]) {
 let cachedSchedule: { data: FrfAjfScheduleResponse; fetchedAt: number } | null = null;
 const SCHEDULE_TTL_MS = 60 * 60 * 1000;
 
+// The in-memory cache above is wiped on every restart (a Render redeploy happens often), so a
+// fetch that fails right after one has no stale copy to fall back on and would otherwise surface
+// a bare error. This mirrors the last successful fetch into the DB so it survives restarts too.
+const CACHE_KEY = "frf-ajf-workit-u12";
+
+async function loadPersistedSchedule(): Promise<FrfAjfScheduleResponse | null> {
+  try {
+    const result = await pool.query<{ data: FrfAjfScheduleResponse }>("SELECT data FROM schedule_cache WHERE key = $1", [
+      CACHE_KEY,
+    ]);
+    return result.rows[0]?.data ?? null;
+  } catch (err) {
+    console.error("Failed to load persisted AJF U12 schedule cache", err);
+    return null;
+  }
+}
+
+async function savePersistedSchedule(data: FrfAjfScheduleResponse): Promise<void> {
+  try {
+    await pool.query(
+      `INSERT INTO schedule_cache (key, data, updated_at) VALUES ($1, $2, NOW())
+       ON CONFLICT (key) DO UPDATE SET data = $2, updated_at = NOW()`,
+      [CACHE_KEY, JSON.stringify(data)]
+    );
+  } catch (err) {
+    console.error("Failed to persist AJF U12 schedule cache", err);
+  }
+}
+
 async function fetchWorkitSchedule(): Promise<FrfAjfScheduleResponse> {
   if (cachedSchedule && Date.now() - cachedSchedule.fetchedAt < SCHEDULE_TTL_MS) return cachedSchedule.data;
+
+  // A fresh process has no in-memory cache yet -- seed it from the DB (fetchedAt: 0, i.e.
+  // already "expired") so a failed live fetch right after startup falls back to it below
+  // instead of looking any different from a failure later in the process's life.
+  if (!cachedSchedule) {
+    const persisted = await loadPersistedSchedule();
+    if (persisted) cachedSchedule = { data: persisted, fetchedAt: 0 };
+  }
 
   try {
     const rows = parseProgramRows(await fetchViaReader(COMPETITION_URL));
@@ -181,6 +219,7 @@ async function fetchWorkitSchedule(): Promise<FrfAjfScheduleResponse> {
     matches.sort((a, b) => a.round - b.round);
     const data: FrfAjfScheduleResponse = { team: TEAM_NAME, updatedAt: new Date().toISOString(), matches, stale: false };
     cachedSchedule = { data, fetchedAt: Date.now() };
+    await savePersistedSchedule(data);
 
     try {
       await syncAlbertCalendar(toAlbertCalendarMatches(matches));
