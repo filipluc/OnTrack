@@ -66,10 +66,20 @@ interface ScheduleRow {
 // own page instead.
 const ROW_RE = /\*\*([^*]+)\*\*(\d+)\s+(\d{4}-\d{2}-\d{2})[^[]*\[Detalii\]\(([^)]+)\)/g;
 
+// The reader proxy sometimes wraps a word inside a team's name in its own (self-linking, no-op)
+// markdown link -- e.g. "CS Workit [Sports](https://www.frf-ajf.ro/#) Iași" instead of the plain
+// "CS Workit Sports Iași" -- inconsistently between rows and between fetches of the same page.
+// Stripped back to plain text before any name matching/splitting, rather than trusting the text
+// to always come back link-free.
+function stripMarkdownLinks(text: string): string {
+  return text.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1");
+}
+
 function parseProgramRows(markdown: string): ScheduleRow[] {
   const rows: ScheduleRow[] = [];
   for (const m of markdown.matchAll(ROW_RE)) {
-    const [, teams, roundStr, date, matchUrl] = m;
+    const [, rawTeams, roundStr, date, matchUrl] = m;
+    const teams = stripMarkdownLinks(rawTeams);
     if (!teams.includes(TEAM_NAME)) continue;
     const sepIdx = teams.indexOf(" - ");
     if (sepIdx === -1) continue;
