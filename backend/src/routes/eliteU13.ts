@@ -1,17 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../auth.js";
 import { addMinutes, syncAlbertCalendar } from "../albertCalendar.js";
-
-/**
- * hailafotbal.ro (the Romanian Football Federation's youth-league site) is a client-side
- * Angular app with no public API docs -- this reverse-engineers the same calls its own
- * frontend makes (found by inspecting its network traffic) to read the same public match
- * data any visitor's browser already sees. The credentials below are the app's own public
- * read-only service account, embedded in its shipped JS bundle -- not a private secret.
- */
-const FRF_API = "https://api.datalake.frf.ro";
-const FRF_USER = "HaiLaFotbal";
-const FRF_PASSWORD = "g2NmJb'{C/x#DqU[8cn57u";
+import { FRF_API, getToken, frfPost, type FrfTourRound, type FrfMatch } from "../frfApi.js";
 
 // Liga Elitelor U13, 2026-2027, Sezon Regular, Seria 1 -- fixed IDs found by inspecting the
 // site while browsing to this team's series. If FRF starts a new season/series, these will
@@ -21,35 +11,6 @@ const COMPETITION_ID = "7768a9cf-beb2-4a1b-8b85-28f5a913a941";
 const STAGE_ID = "48ba137b-b825-4822-a0bf-bbce1d49f0d9";
 const SERIES_ID = "ec1c50ea-97f5-4d85-9f1c-facf1d959b5e";
 const TEAM_NAME = "Workit Sports";
-
-interface FrfTourRound {
-  tourRoundId: string;
-  seriesId: string;
-  stageId: string;
-  // tourNo is which "circuit" through every opponent this is (1st time round, 2nd, ...) --
-  // NOT the sequential round/week number a human means by "round 7". That's orderdisplay.
-  orderdisplay: number;
-}
-
-interface FrfClub {
-  name: string;
-}
-
-interface FrfStadium {
-  name: string;
-  town: string;
-}
-
-interface FrfMatch {
-  matchId: string;
-  startDate: string;
-  homeGoals: number | null;
-  awayGoals: number | null;
-  sysCompetitionMatchStatusId: number | null;
-  homeClub: FrfClub | null;
-  awayClub: FrfClub | null;
-  stadium: FrfStadium | null;
-}
 
 export interface EliteU13Match {
   matchId: string;
@@ -110,37 +71,6 @@ export interface MatchSheetClub {
 export interface EliteU13MatchSheet {
   home: MatchSheetClub;
   away: MatchSheetClub;
-}
-
-// Cached separately from the schedule itself since a token's own lifetime is much shorter
-// than how often the match schedule realistically changes.
-let cachedToken: { value: string; fetchedAt: number } | null = null;
-const TOKEN_TTL_MS = 20 * 60 * 1000;
-
-async function getToken(): Promise<string> {
-  if (cachedToken && Date.now() - cachedToken.fetchedAt < TOKEN_TTL_MS) return cachedToken.value;
-  const res = await fetch(`${FRF_API}/Auth/GetToken`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ apiUser: FRF_USER, apiPassword: FRF_PASSWORD }),
-  });
-  if (!res.ok) throw new Error(`FRF auth failed: ${res.status}`);
-  const data = (await res.json()) as { token: string };
-  cachedToken = { value: data.token, fetchedAt: Date.now() };
-  return data.token;
-}
-
-async function frfPost<T>(path: string, body: unknown): Promise<T> {
-  const token = await getToken();
-  const res = await fetch(`${FRF_API}/HaiLaFotbal/${path}`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`FRF API ${path} failed: ${res.status}`);
-  const json = (await res.json()) as { hasErrors: boolean; erorrMessages: string[]; responseData: T };
-  if (json.hasErrors) throw new Error(`FRF API ${path} returned errors: ${JSON.stringify(json.erorrMessages)}`);
-  return json.responseData;
 }
 
 // FRF doesn't publish match length, only kickoff time -- 90 minutes is a safe overestimate

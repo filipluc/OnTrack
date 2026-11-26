@@ -367,3 +367,21 @@ export interface FrfAjfScheduleResponse {
 export function getWorkitSchedule() {
   return request<FrfAjfScheduleResponse>("/frf-ajf/schedule");
 }
+
+export interface InterligaU12Match {
+  matchId: string;
+  round: number;
+  date: string;
+  home: string;
+  away: string;
+  homeGoals: number | null;
+  awayGoals: number | null;
+  played: boolean;
+  stadium: string | null;
+  town: string | null;
+}
+
+/** Live-fetched (with a server-side cache) from hailafotbal.ro — not stored in our own DB. */
+export function getInterligaU12Schedule() {
+  return request<{ team: string; matches: InterligaU12Match[] }>("/interliga-u12/schedule");
+}

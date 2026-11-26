@@ -6,6 +6,7 @@ import { childrenRouter } from "./routes/children.js";
 import { tasksRouter } from "./routes/tasks.js";
 import { pushRouter } from "./routes/push.js";
 import { eliteU13Router } from "./routes/eliteU13.js";
+import { interligaU12Router } from "./routes/interligaU12.js";
 import { cupaScheduleRouter } from "./routes/cupaSchedule.js";
 import { frfAjfScheduleRouter } from "./routes/frfAjfSchedule.js";
 import { initSchema } from "./db.js";
@@ -26,6 +27,7 @@ app.use("/api/children", childrenRouter);
 app.use("/api/tasks", tasksRouter);
 app.use("/api/push", pushRouter);
 app.use("/api/elite-u13", eliteU13Router);
+app.use("/api/interliga-u12", interligaU12Router);
 app.use("/api/cupa", cupaScheduleRouter);
 app.use("/api/frf-ajf", frfAjfScheduleRouter);
 

@@ -10,6 +10,7 @@ import EliteU13Schedule from "./pages/EliteU13Schedule";
 import CupaSteleleViitorului from "./pages/CupaSteleleViitorului";
 import CupaYearSchedule from "./pages/CupaYearSchedule";
 import WorkitSchedule from "./pages/WorkitSchedule";
+import InterligaU12Schedule from "./pages/InterligaU12Schedule";
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const { user } = useAuth();
@@ -68,6 +69,14 @@ export default function App() {
         element={
           <RequireAuth>
             <WorkitSchedule />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/more/interliga-u12"
+        element={
+          <RequireAuth>
+            <InterligaU12Schedule />
           </RequireAuth>
         }
       />

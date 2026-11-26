@@ -14,6 +14,11 @@ export default function More() {
           <span className="more-item-label">Elite U13 Schedule</span>
           <span className="more-item-arrow">›</span>
         </Link>
+        <Link to="/more/interliga-u12" className="more-item">
+          <span className="more-item-icon">⚽</span>
+          <span className="more-item-label">Interliga U12 2026/2027</span>
+          <span className="more-item-arrow">›</span>
+        </Link>
         <Link to="/more/workit" className="more-item">
           <span className="more-item-icon">⚽</span>
           <span className="more-item-label">AJF U12 2026/2027</span>
